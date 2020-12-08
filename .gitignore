@@ -1,0 +1,5 @@
+application.properties
+tests\
+.gradle\
+.idea\
+build\
