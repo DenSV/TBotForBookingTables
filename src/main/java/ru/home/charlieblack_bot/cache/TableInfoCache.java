@@ -27,9 +27,35 @@ public class TableInfoCache {
     }
 
     public void saveAll(List<TableInfo> tableInfoList){
+
         for (TableInfo tableInfo: tableInfoList) {
-            tableInfoCache.get(tableInfo.getTableNumber() + tableInfo.getBookingTime()).setBooked(tableInfo.isBooked());
-            tableInfoService.saveAll(tableInfoList);
+            tableInfoCache.get(tableInfo.getTableNumber() + tableInfo.getBookingTime())
+                    .setBooked(tableInfo.isBooked());
+
+        }
+
+        tableInfoService.saveAll(tableInfoList);
+
+    }
+
+    public void makeAllTablesFree(){
+
+        tableInfoCache.forEach((s, tableInfo) -> {
+            if(tableInfo.isBooked()) {
+                tableInfo.setBooked(false);
+                tableInfo.setBookingName(null);
+            }
+        });
+
+        tableInfoService.makeAllTableFree();
+
+    }
+
+    public boolean hasBooked(int tableNum, String bookingTime){
+        if (tableInfoCache.get(tableNum+bookingTime) == null){
+            return false;
+        } else {
+            return tableInfoCache.get(tableNum+bookingTime).isBooked();
         }
 
     }

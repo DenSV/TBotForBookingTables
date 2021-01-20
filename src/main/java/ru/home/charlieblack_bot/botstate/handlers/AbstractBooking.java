@@ -8,7 +8,9 @@ import ru.home.charlieblack_bot.cache.UserDataCache;
 import ru.home.charlieblack_bot.model.UserProfileData;
 import ru.home.charlieblack_bot.service.ReplyMessagesService;
 
-public abstract class BookingAbstract implements Booking {
+import static ru.home.charlieblack_bot.botstate.handlers.BookingCore.getInputMsgFromUpdate;
+
+public abstract class AbstractBooking implements Booking {
 
     protected UserDataCache userDataCache;
     protected ReplyMessagesService messagesService;
@@ -19,7 +21,7 @@ public abstract class BookingAbstract implements Booking {
     protected Update update;
     protected String inputMsg;
 
-    public BookingAbstract(Update update) {
+    public AbstractBooking(Update update) {
         this.userDataCache = AppContProvider.getApplicationContext().getBean(UserDataCache.class);
         this.messagesService = AppContProvider.getApplicationContext().getBean(ReplyMessagesService.class);
         this.userId = UserProfileData.getUserIdFromUpdate(update);
@@ -27,9 +29,16 @@ public abstract class BookingAbstract implements Booking {
         this.profileData = userDataCache.getUserProfileData(userId);
         this.tableBookingHistoryCache = AppContProvider.getApplicationContext().getBean(TableBookingHistoryCache.class);
         this.update = update;
-        this.inputMsg = BookingCore.getInputMsgFromUpdate(update);
+        this.inputMsg = getInputMsgFromUpdate(update);
+
+        this.profileData.setChatId(userId);
+        this.profileData.setInputMsg(inputMsg);
+        this.userDataCache.setUsersCurrentBotState(userId, BotStateEnum.getNextBotState(currentBotStateEnum));
+
+
+        if (profileData.getUserRole() == null || !profileData.getUserRole().equals("admin"))
+        this.profileData.setUserRole("user");
+
     }
-
-
 
 }

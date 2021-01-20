@@ -27,27 +27,22 @@ public class UsersProfileDataService implements DataService{
 
         profilePostgreRepository.save(userProfileData);
     }
-
-    public UserProfileData getUserDescription(long chatId) {
-        return profilePostgreRepository.findByChatId(chatId);
-    }
-
-    public boolean existsByChatId(long chatId){
-        return profilePostgreRepository.existsByChatId(chatId);
-    }
-
+    
     public UserProfileData getUserProfileData(long chatId) {return profilePostgreRepository.findByChatId(chatId);}
 
     public List<UserProfileData> getAllUsers(){ return profilePostgreRepository.findAll(); }
 
-    /*public List<UserProfileData> getAllProfiles(){return profileMongoRepository.findAll();}
+    @Async
+    public void clearDataAboutTables(){
+        List<UserProfileData> usersList = profilePostgreRepository.findAll();
+        usersList.forEach(profileData -> {
+            profileData.setBookingTime(null);
+            profileData.setPersonCount(null);
+            profileData.setTableNum(0);
+        });
 
-    public void saveUserDescription(UserProfileData userProfileData){profileMongoRepository.save(userProfileData);}
+        profilePostgreRepository.saveAll(usersList);
 
-    public boolean existsById(long chatId){return profileMongoRepository.existsByChatId(chatId);}
+    }
 
-    public void deleteUserProfileData(String profileDataId){profileMongoRepository.deleteById(profileDataId);}
-
-    public UserProfileData getUserDescription(long chatId){return profileMongoRepository.findByChatId(chatId);}
-*/
 }

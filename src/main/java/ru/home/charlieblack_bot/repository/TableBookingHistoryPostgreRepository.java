@@ -7,12 +7,11 @@ import java.util.List;
 
 public interface TableBookingHistoryPostgreRepository extends JpaRepository<TableBookingHistory, Integer> {
 
-    boolean existsByBookingTimeAndUserChatId(String bookingTime, long userId);
-
-    TableBookingHistory findByTableInfoAndBookingTime(int tableNum, String bookingTime);
-
     List<TableBookingHistory> findAll();
 
     List<TableBookingHistory> findByTableNumId(int tableNum);
 
+    void deleteByBookingTimeAndUserChatId(String bookingTime, long userId);
+
+    void deleteByPersonalData(String userNameAndPhone);
 }

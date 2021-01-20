@@ -8,28 +8,35 @@ package ru.home.charlieblack_bot.botstate.handlers;
 */
 
 
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.home.charlieblack_bot.AppContProvider;
+import ru.home.charlieblack_bot.CharlieBlackTelegramBot;
+import ru.home.charlieblack_bot.ScheduledTasks;
+import ru.home.charlieblack_bot.cache.TableBookingHistoryCache;
+import ru.home.charlieblack_bot.cache.TableInfoCache;
+import ru.home.charlieblack_bot.cache.UserDataCache;
 import ru.home.charlieblack_bot.model.TableBookingHistory;
 import ru.home.charlieblack_bot.model.TableInfo;
-import ru.home.charlieblack_bot.service.TableBookingHistoryService;
+import ru.home.charlieblack_bot.model.UserProfileData;
 import ru.home.charlieblack_bot.service.TableInfoService;
 
 import java.time.LocalTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 
 public class BookingCore {
-
-
-    /*public BookingCore(TableInfoService tableInfoService){
-        this.tableInfoService = tableInfoService;
-    }*/
 
     public static List<TableInfo> getFreeTables(String bookingTime) {
 
@@ -44,114 +51,6 @@ public class BookingCore {
         Collections.sort(freeTableList);
 
         return freeTableList;
-
-/*Map<Integer, Set> allTablesWithAllTime = new LinkedHashMap<>();
-
-        for(int i = 0; i < tableInfoList1.size(); i++){
-            allTablesWithAllTime.put(i, allTimesSet);
-        }*//*
-
-        //нижний предел
-        //верхний предел
-
-
-        LocalTime startTime = LocalTime.of(15, 00);
-
-        for (TableInfo tableInfo: tableInfoList1) {
-            for(int i = 0; i < 4; i++){
-                    tableInfo.setBookingTime(startTime);
-                    resultTableInfo1.add(tableInfo);
-                    startTime = startTime.plusMinutes(15);
-                //startTime = startTime.plusHours(1);
-            }
-        }
-
-        for (int i = 0; i < resultTableInfo.size(); i++) {
-
-        }
-*/
-
-
-
-
-    }
-
-    public static boolean isTableBooked(int tableNum, String booking_time){
-        boolean result = false;
-
-        TableBookingHistoryService tableBookingHistoryService = AppContProvider.getApplicationContext().getBean(TableBookingHistoryService.class);
-
-
-        List<TableBookingHistory> tableBookingHistories = tableBookingHistoryService.getTablesByNum(tableNum);
-
-        if(tableBookingHistories.size() == 0){
-            return false;
-        } else {
-
-            for (TableBookingHistory tableBookingHistory : tableBookingHistories) {
-
-                //нижний предел
-                LocalTime bookedTime = LocalTime.parse(tableBookingHistory.getBookingTime());
-
-                LocalTime bookingTime = LocalTime.parse(booking_time);
-
-                LocalTime leftTime = bookedTime.minusMinutes(tableBookingHistory.getDuration());
-                LocalTime rightTime = bookedTime.plusMinutes(tableBookingHistory.getDuration());
-
-
-                if (bookingTime.isAfter(leftTime) && bookingTime.isBefore(rightTime)) {
-                    return true;
-                } else {
-                    return false;
-                }
-
-            }
-        }
-
-        return result;
-
-    }
-
-    private Map<Integer, LinkedHashSet> removeTimesFromTable(Map<Integer, LinkedHashSet<String>> tables, String bookingTime){
-
-        for (Map.Entry<Integer, LinkedHashSet<String>> entry: tables.entrySet()) {
-
-
-            //LinkedHashSet<String> newSet = new LinkedHashSet<>(entry.getValue());
-
-            entry.getValue().removeIf(tableTime -> isTableBooked(entry.getKey(), tableTime));
-
-            //entry.getValue() = newSet;
-        }
-
-        return null;
-
-    }
-
-    public static void addTables(){
-        TableInfoService tableInfoService = AppContProvider.getApplicationContext().getBean(TableInfoService.class);
-
-
-        int tableNum = 9;
-
-        while (tableNum != 11) {
-
-            LocalTime startTime = LocalTime.of(15, 00);
-
-            int capacity = 6;
-
-
-                //for (int j = 0; j < 37; j++) {
-                while (startTime != LocalTime.parse("00:00")){
-                    tableInfoService.saveTableInfo(tableNum, startTime, capacity);
-                    startTime = startTime.plusMinutes(15);
-                    //startTime = startTime.plusHours(1);
-                }
-
-            tableNum++;
-        }
-
-        String string = "";
 
     }
 
@@ -169,7 +68,6 @@ public class BookingCore {
         return inputMsg;
 
     }
-
 
     /*
         KEYBOARD'S BUTTONS
@@ -252,4 +150,314 @@ public class BookingCore {
         return replyKeyboardMarkup;
     }
 
+    public static InlineKeyboardMarkup getInlineKeyBoardTimeButtons(){
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+
+        List<List<InlineKeyboardButton>> rowList = new ArrayList<>(9);
+
+        LocalTime startTime = LocalTime.of(15, 00);
+
+        for(int i = 0; i < 5; i++){
+            List<InlineKeyboardButton> inlineKeyboardButtons = new ArrayList<>(4);
+            for (int j = 0; j < 4; j++) {
+                if(!startTime.equals(LocalTime.MIN) && !startTime.equals(LocalTime.MIN.plusMinutes(30))){
+                    inlineKeyboardButtons.add(new InlineKeyboardButton()
+                            .setText(startTime.toString())
+                            .setCallbackData("time-" + startTime.toString()));
+                }
+                startTime = startTime.plusMinutes(30);
+            }
+
+            rowList.add(inlineKeyboardButtons);
+
+        }
+
+        inlineKeyboardMarkup.setKeyboard(rowList);
+
+        return inlineKeyboardMarkup;
+
+    }
+
+    public static InlineKeyboardMarkup getInlineMessageButtons(List<TableInfo> freeTables) {
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+
+        List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+
+        for (TableInfo tableInfo: freeTables) {
+            List<InlineKeyboardButton> keyboardButtons = new ArrayList<>();
+
+            String tableNum = String.valueOf(tableInfo.getTableNumber());
+
+            keyboardButtons.add(new InlineKeyboardButton()
+                    .setText("Стол №" + tableNum + " (" + tableInfo.getCapacity() + " чел.)")
+                    .setCallbackData("table_num=" + tableNum + "&" + "person_count=" + tableInfo.getCapacity()));
+
+            rowList.add(keyboardButtons);
+        }
+
+        inlineKeyboardMarkup.setKeyboard(rowList);
+
+        return inlineKeyboardMarkup;
+    }
+
+    private static ReplyKeyboard getInlineKeyBoardApproveBooking(long userId) {
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+
+        List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+
+        List<InlineKeyboardButton> inlineKeyboardButtonRow = new ArrayList<>();
+
+        inlineKeyboardButtonRow.add(new InlineKeyboardButton().setText("Подтвердить").setCallbackData("booking_request_approve=" + userId));
+        inlineKeyboardButtonRow.add(new InlineKeyboardButton().setText("Отменить").setCallbackData("booking_request_decline=" + userId));
+
+        rowList.add(inlineKeyboardButtonRow);
+        inlineKeyboardMarkup.setKeyboard(rowList);
+        return inlineKeyboardMarkup;
+
+    }
+
+    public static InlineKeyboardMarkup getInlinekeyboardForBookingContinue() {
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+
+        List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+
+        List<InlineKeyboardButton> inlineKeyboardButtonRow = new ArrayList<>();
+
+        inlineKeyboardButtonRow.add(new InlineKeyboardButton().setText("Продлить").setCallbackData("booking_continue_true"));
+        inlineKeyboardButtonRow.add(new InlineKeyboardButton().setText("Отменить").setCallbackData("booking_continue_false"));
+
+        rowList.add(inlineKeyboardButtonRow);
+        inlineKeyboardMarkup.setKeyboard(rowList);
+        return inlineKeyboardMarkup;
+
+    }
+
+    /*
+        Отправка сообщений администратору
+     */
+
+    public static void sendMessageToAdmin(UserProfileData profileData){
+
+        UserDataCache userDataCache = AppContProvider.getApplicationContext().getBean(UserDataCache.class);
+
+        TableBookingHistoryCache tBHCache = AppContProvider.getApplicationContext().getBean(TableBookingHistoryCache.class);
+
+        CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
+        List<UserProfileData> adminList = userDataCache.getAdminList();
+
+        adminList.forEach(admin -> {
+            SendMessage sendMessageHeader = new SendMessage()
+                    .setChatId(admin.getChatId())
+                    .setText("Стол № " + profileData.getTableNum() +
+                            " забронирован к " + profileData.getBookingTime() +
+                            " на " + profileData.getPersonCount() +
+                            " чел. " + " Имя - " + profileData.getName() +
+                            ", тел. номер: " + profileData.getPhoneNumber())
+                    .setReplyMarkup(getInlineKeyBoardApproveBooking(profileData.getChatId()));
+
+
+            try {
+                tBHCache.addMessageForAdmins(admin.getChatId(), telegramBot.execute(sendMessageHeader).getMessageId());
+
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
+
+        });
+
+        //Отправка сообщения-заголовка
+
+    }
+
+    public static void sendMessageToAdminForContinueBooking(UserProfileData profileData){
+
+        UserDataCache userDataCache = AppContProvider.getApplicationContext().getBean(UserDataCache.class);
+
+        List<UserProfileData> adminList = userDataCache.getAdminList();
+
+        adminList.forEach(admin -> {
+            SendMessage sendMessageHeader = new SendMessage()
+                    .setChatId(admin.getChatId())
+                    .setText("Стол № " + profileData.getTableNum() +
+                            " забронирован к " + profileData.getBookingTime() +
+                            " на " + profileData.getPersonCount() +
+                            " чел. " + " Продлен на следующий сеанс\n"+
+                            " Имя - " + profileData.getName() +
+                            ", тел. номер: " + profileData.getPhoneNumber());
+
+            sendMessage(sendMessageHeader);
+
+        });
+
+        //Отправка сообщения-заголовка
+
+    }
+
+
+    public static void sendMessageToAdminIfBookCancelled(UserProfileData profileData){
+
+        UserDataCache userDataCache = AppContProvider.getApplicationContext().getBean(UserDataCache.class);
+
+        List<UserProfileData> adminList = userDataCache.getAdminList();
+
+        adminList.forEach(admin -> {
+            SendMessage sendMessageHeader = new SendMessage()
+                    .setChatId(admin.getChatId())
+                    .setText("Отменен стол № " + profileData.getTableNum() +
+                            " " + profileData.getBookingTime() +
+                            " на " + profileData.getPersonCount() +
+                            " чел. " + " Имя - " + profileData.getName() +
+                            ", тел. номер: " + profileData.getPhoneNumber());
+            sendMessage(sendMessageHeader);
+        });
+
+        userDataCache.clearDataAboutTablesByUserId(profileData.getChatId());
+    }
+
+    /*
+        Отправка сообщений от администратора
+     */
+
+    public static SendMessage approveBooking(Update update){
+
+        String inputMsg = (update.hasCallbackQuery() ? update.getCallbackQuery().getData() : "");
+
+        long adminId = UserProfileData.getUserIdFromUpdate(update);
+        long userId = Long.parseLong(inputMsg.split("=")[1]);
+
+
+        TableBookingHistoryCache tableBookingHistoryCache = AppContProvider.getApplicationContext().getBean(TableBookingHistoryCache.class);
+        UserDataCache userDataCache = AppContProvider.getApplicationContext().getBean(UserDataCache.class);
+        ScheduledTasks scheduledTasks = AppContProvider.getApplicationContext().getBean(ScheduledTasks.class);
+
+        TableBookingHistory tableBookingHistory = tableBookingHistoryCache.getTableBookingHistoryByUserId(userId);
+
+        if(inputMsg.contains("booking_request_approve")){
+            tableBookingHistory.setBookingStatus("approved");
+            tableBookingHistoryCache.saveTableBookingHistory(userId, tableBookingHistory);
+            scheduledTasks.addUserForNotification(userId, userDataCache.getUserProfileData(userId).getBookingTime());
+            SendMessage sendMessage = new SendMessage().setChatId(userId).setText("Ваша бронь подтверждена. Ждем вас");
+
+            //Если админ подтвердил бронь, то происходит удаление сообщений у других администраторов
+            List<String> messageForAdmins = tableBookingHistoryCache.getMessagesForAdmins(userId);
+            messageForAdmins.forEach(str -> {
+                BookingCore.deleteMessage( new DeleteMessage()
+                        .setChatId(str.split("_")[0])
+                        .setMessageId(Integer.parseInt(str.split("_")[1])));
+
+                sendMessage(new SendMessage()
+                        .setChatId(str.split("_")[0])
+                        .setText("Бронь на стол №" + tableBookingHistory.getTableInfo().getTableNumber() +
+                                " к " + tableBookingHistory.getBookingTime() + " подтвердил администратор " +
+                                userDataCache.getUserProfileData(userId).getName()));
+            });
+
+            tableBookingHistoryCache.clearMessagesForAdmins();
+
+            sendMessage(sendMessage);
+
+            return new SendMessage(adminId, "Бронь подтверждена");
+
+        } else if(inputMsg.contains("booking_request_decline")){
+            tableBookingHistoryCache.deleteByBookingTimeAndUserId(userDataCache.getUserProfileData(userId), 150);
+
+            SendMessage sendMessage = new SendMessage().setChatId(userId).setText("Ваша бронь отменена");
+
+            List<String> messageForAdmins = tableBookingHistoryCache.getMessagesForAdmins(userId);
+            messageForAdmins.forEach(str -> {
+                BookingCore.deleteMessage( new DeleteMessage()
+                        .setChatId(str.split("_")[0])
+                        .setMessageId(Integer.parseInt(str.split("_")[1])));
+
+                sendMessage(new SendMessage()
+                        .setChatId(str.split("_")[0])
+                        .setText("Бронь на стол №" + tableBookingHistory.getTableInfo().getTableNumber() +
+                                " к " + tableBookingHistory.getBookingTime() + " отменил администратор " +
+                                userDataCache.getUserProfileData(userId).getName()));
+            });
+
+            tableBookingHistoryCache.clearMessagesForAdmins();
+
+            sendMessage(sendMessage);
+
+            return new SendMessage(adminId, "Бронь отменена");
+        }
+
+        return null;
+    }
+
+    public static void sendMessage(SendMessage sendMessage){
+        CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
+
+        try {
+
+            telegramBot.execute(sendMessage);
+
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void editMessage(EditMessageText editMessageText){
+        CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
+
+        try {
+            telegramBot.execute(editMessageText);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static SendMessage editMessage(long userId, Update update, String text){
+        CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
+
+        try {
+            telegramBot.execute(new EditMessageText()
+                    .setChatId(userId)
+                    .setMessageId(update.getCallbackQuery().getMessage().getMessageId())
+                    .setText(text));
+
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public static SendMessage editMessage(long userId, Update update, String text, InlineKeyboardMarkup inlineKeyboardMarkup){
+        CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
+
+        try {
+            telegramBot.execute(new EditMessageText()
+                    .setChatId(userId)
+                    .setMessageId(update.getCallbackQuery().getMessage().getMessageId())
+                    .setText(text)
+                    .setReplyMarkup(inlineKeyboardMarkup));
+
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public static void deleteMessage(DeleteMessage deleteMessage){
+        CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
+
+        try {
+            telegramBot.execute(deleteMessage);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public static String getTableCapacity(int tableNum){
+
+        TableInfoCache tableInfoCache = AppContProvider.getApplicationContext().getBean(TableInfoCache.class);
+        return tableInfoCache.getTableInfoByTableNumAndBookingTime(tableNum, "15:00").getCapacity();
+
+    }
 }

@@ -13,18 +13,18 @@ import java.io.Serializable;
 @Data
 @Getter
 @Setter
-public class TableBookingHistory implements Serializable {
+public class TableBookingHistory implements Serializable, Comparable<TableBookingHistory> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.MERGE)
+    @ManyToOne(fetch = FetchType.EAGER, cascade = CascadeType.MERGE)
     @JoinColumn(name = "tableinfo_num_id", referencedColumnName = "id")
     private TableInfo tableInfo;
 
     @Column(name = "person_count")
-    private int personCount;
+    private String personCount;
 
     @Column(name = "booking_time")
     private String bookingTime;
@@ -43,6 +43,30 @@ public class TableBookingHistory implements Serializable {
     private UserProfileData bookingUser;
 
     @Column(name = "table_num_id")
-    private int tableNumId;
+    private Integer tableNumId;
 
+    @Column(name = "booking_status")
+    private String bookingStatus;
+
+    @Column(name = "user_name_phone")
+    private String personalData;
+
+    @Override
+    public String toString() {
+        String personName = personalData.split(" ")[0];
+        String personPhone = personalData.split(" ")[1];
+
+        return "Стол №" + tableInfo.getTableNumber() +
+                " забронирован к " + bookingTime +
+                " на " + personCount +
+                " чел. Имя - " + personName +
+                ", тел. номер: " + personPhone;
+
+    }
+
+    @Override
+    public int compareTo(TableBookingHistory o) {
+        return this.tableNumId.compareTo(o.tableNumId);
+
+    }
 }

@@ -2,11 +2,14 @@ package ru.home.charlieblack_bot.botstate.handlers.showProfileHandler.showingPro
 
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import ru.home.charlieblack_bot.botstate.handlers.BookingCore;
 import ru.home.charlieblack_bot.botstate.handlers.Booking;
-import ru.home.charlieblack_bot.botstate.handlers.BookingAbstract;
+import ru.home.charlieblack_bot.botstate.handlers.AbstractBooking;
 
-public class ShowUserProfileData extends BookingAbstract implements Booking {
+import static ru.home.charlieblack_bot.botstate.handlers.BookingCore.getReplyKeyBoardChangeUserInfo;
+
+public class ShowUserProfileData extends AbstractBooking implements Booking {
+
+    private String replyMessage;
 
     public ShowUserProfileData(Update update) {
         super(update);
@@ -20,7 +23,6 @@ public class ShowUserProfileData extends BookingAbstract implements Booking {
     }
 
     private SendMessage getReplyMessage(boolean isUserExist){
-        String replyMessage = "";
 
         if(isUserExist){
             replyMessage = profileData.toString();
@@ -28,7 +30,8 @@ public class ShowUserProfileData extends BookingAbstract implements Booking {
             replyMessage = "К сожалению данного профиля нет в БД";
         }
 
-        return messagesService.getReplyMessage(userId, replyMessage).setReplyMarkup(BookingCore.getReplyKeyBoardChangeUserInfo());
+        return messagesService.getReplyMessage(userId, replyMessage)
+                .setReplyMarkup(getReplyKeyBoardChangeUserInfo());
 
     }
 }

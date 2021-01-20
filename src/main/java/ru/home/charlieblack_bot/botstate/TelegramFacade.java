@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import ru.home.charlieblack_bot.botstate.handlers.InlineButtonsHandler;
 import ru.home.charlieblack_bot.cache.UserDataCache;
 import ru.home.charlieblack_bot.model.UserProfileData;
 
@@ -28,10 +29,28 @@ public class TelegramFacade {
     private SendMessage handleInputMessage(Update update) {
 
         BotStateEnum botState = botResponse.getBotStateEnum(update);
+
+        long userId = UserProfileData.getUserIdFromUpdate(update);
+
+        UserProfileData profileData = userDataCache.getUserProfileData(userId);
+
+
+        if(botState.getRole().equals("admin")){
+            if(profileData.getUserRole() == null || profileData.getUserRole().equals("user")){
+                return new SendMessage(userId, "Данная команда недействительна");
+            }
+        }
+
+        SendMessage sendMessage = InlineButtonsHandler.getSendMessageFromInlineButtons(update);
+        if(sendMessage != null){
+            return sendMessage;
+        }
+
         userDataCache.setUsersCurrentBotState(UserProfileData.getUserIdFromUpdate(update), botState);
 
         return botStateContext.processInputMessage(botState, update);
 
-
     }
+
+
 }

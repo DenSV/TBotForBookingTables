@@ -9,6 +9,7 @@ public class CharlieBlackBotApplication {
     public static void main(String[] args) {
 
         SpringApplication.run(CharlieBlackBotApplication.class, args);
+
     }
 
 }

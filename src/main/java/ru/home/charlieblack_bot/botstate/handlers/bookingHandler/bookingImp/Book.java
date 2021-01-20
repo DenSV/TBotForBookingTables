@@ -4,16 +4,16 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import ru.home.charlieblack_bot.botstate.BotStateEnum;
 import ru.home.charlieblack_bot.botstate.handlers.Booking;
-import ru.home.charlieblack_bot.botstate.handlers.BookingAbstract;
-import ru.home.charlieblack_bot.botstate.handlers.BookingCore;
+import ru.home.charlieblack_bot.botstate.handlers.AbstractBooking;
 
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Book extends BookingAbstract implements Booking {
+import static ru.home.charlieblack_bot.botstate.handlers.BookingCore.getInlineKeyBoardTimeButtons;
+import static ru.home.charlieblack_bot.botstate.handlers.BookingCore.getReplyKeyBoardBackToStartPage;
+
+public class Book extends AbstractBooking implements Booking {
 
     public Book(Update update) {
         super(update);
@@ -22,50 +22,45 @@ public class Book extends BookingAbstract implements Booking {
     @Override
     public SendMessage getResponse() {
 
-        profileData.setChatId(userId);
-
-        userDataCache.saveUserProfileData(userId, profileData);
-
+        //Если столик забронирован, то предложить отменить бронь или выбрать другое время
         if(tableBookingHistoryCache.hasUserBooked(userId)){
 
-            userDataCache.setUsersCurrentBotState(userId, BotStateEnum.BOOKING_BOOK);
+            if(tableBookingHistoryCache.hasConsidering(userId)){
+                return messagesService.getReplyMessage(userId, "Ваша бронь на рассмотрении. " +
+                        "В ближайшее время администратор с вами свяжется")
+                        .setReplyMarkup(getReplyKeyBoardBackToStartPage());
+            }
 
             return messagesService.getReplyMessage(userId, "За вами уже забронирован столик № "
                     + profileData.getTableNum() + " к "
-                    + profileData.getBookingTime())
-                    .setReplyMarkup(BookingCore.getReplyKeyBoardBackToStartPage());
+                    + profileData.getBookingTime() + ". \n"
+                    + "Хотите отменить бронирование или выбрать другое время?")
+                    .setReplyMarkup(getChangeBookingTime());
 
         } else {
 
-            setNextBotState();
-            return messagesService.getReplyMessage(userId, "Укажите время").setReplyMarkup(getInlineKeyBoardTimeButtons());
+            return messagesService.getReplyMessage(userId, "Укажите время")
+                    .setReplyMarkup(getInlineKeyBoardTimeButtons());
         }
     }
 
-    private void setNextBotState(){
-
-        userDataCache.setUsersCurrentBotState(userId, BotStateEnum.getNextBotState(currentBotStateEnum));
-
-    }
-
-    public static InlineKeyboardMarkup getInlineKeyBoardTimeButtons(){
-
+    private InlineKeyboardMarkup getChangeBookingTime(){
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
 
-        List<List<InlineKeyboardButton>> rowList = new ArrayList<>(9);
+        List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
 
-        LocalTime startTime = LocalTime.of(15, 00);
+        List<InlineKeyboardButton> inlineKeyboardButtonRow1 = new ArrayList<>();
+        inlineKeyboardButtonRow1.add(new InlineKeyboardButton()
+                .setText("Отменить бронь")
+                .setCallbackData("Отменить бронь"));
 
-        for(int i = 0; i < 9; i++){
-            List<InlineKeyboardButton> inlineKeyboardButtons = new ArrayList<>(4);
-            for (int j = 0; j < 4; j++) {
-                inlineKeyboardButtons.add(new InlineKeyboardButton().setText(startTime.toString()).setCallbackData(startTime.toString()));
-                startTime = startTime.plusMinutes(15);
-            }
+        List<InlineKeyboardButton> inlineKeyboardButtonRow2 = new ArrayList<>();
+        inlineKeyboardButtonRow2.add(new InlineKeyboardButton()
+                .setText("Изменить время")
+                .setCallbackData("Изменить время"));
 
-            rowList.add(inlineKeyboardButtons);
-
-        }
+        rowList.add(inlineKeyboardButtonRow1);
+        rowList.add(inlineKeyboardButtonRow2);
 
         inlineKeyboardMarkup.setKeyboard(rowList);
 

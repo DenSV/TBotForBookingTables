@@ -7,6 +7,4 @@ public interface UserProfilePostgreRepository extends JpaRepository<UserProfileD
 
     UserProfileData findByChatId(long chatId);
 
-    boolean existsByChatId(long chatId);
-
 }

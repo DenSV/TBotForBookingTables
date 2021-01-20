@@ -7,16 +7,9 @@ import java.util.List;
 
 public interface TableInfoPostgreRepository extends JpaRepository<TableInfo, Integer> {
 
-    boolean existsById(int id);
-
-    TableInfo findByTableNumberAndBookingTime(int tableNumber, String bookingTime);
-
-    TableInfo findById(int id);
-
     List<TableInfo> findAll();
-
-    List<TableInfo> findAllByTableNumberAndBookingTime(int tableNumber, String bookingTime);
 
     List<TableInfo> findAllByBookingTimeAndBooked(String bookingTime, boolean booked);
 
+    List<TableInfo> findAllByBooked(boolean isBooked);
 }

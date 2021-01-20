@@ -5,11 +5,11 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import ru.home.charlieblack_bot.cache.UserDataCache;
 import ru.home.charlieblack_bot.model.UserProfileData;
 
-public abstract class HandlerAbstract {
+public abstract class AbstractHandler {
 
     protected UserDataCache userDataCache;
 
-    public HandlerAbstract(UserDataCache userDataCache) {
+    public AbstractHandler(UserDataCache userDataCache) {
         this.userDataCache = userDataCache;
     }
 

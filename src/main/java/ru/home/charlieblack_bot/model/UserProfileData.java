@@ -5,6 +5,10 @@ import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import ru.home.charlieblack_bot.AppContProvider;
+import ru.home.charlieblack_bot.botstate.BotResponse;
+import ru.home.charlieblack_bot.botstate.BotStateEnum;
+import ru.home.charlieblack_bot.cache.UserDataCache;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -13,7 +17,6 @@ import java.io.Serializable;
 @Table(name = "users")
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-//@Document(collection = "userProfileData")
 public class UserProfileData implements Serializable {
 
     @Id
@@ -27,7 +30,7 @@ public class UserProfileData implements Serializable {
     String bookingTime;
 
     @Column(name = "person_count")
-    int personCount;
+    String personCount;
 
     @Column(name = "table_num")
     int tableNum;
@@ -37,6 +40,9 @@ public class UserProfileData implements Serializable {
 
     @Column(name = "chat_id")
     long chatId;
+
+    @Column(name = "user_role")
+    String userRole;
 
     @Override
     public String toString() {
@@ -52,5 +58,33 @@ public class UserProfileData implements Serializable {
     public static long getUserIdFromUpdate(Update update){
         Message inputMsg = update.getMessage();
         return (!update.hasCallbackQuery() ? inputMsg.getFrom().getId() : update.getCallbackQuery().getMessage().getChatId());
+    }
+
+    public void setInputMsg(String inputMsg){
+
+        UserDataCache userDataCache = AppContProvider.getApplicationContext().getBean(UserDataCache.class);
+
+        BotStateEnum botStateEnum = userDataCache.getUsersCurrentBotState(this.chatId);
+
+        if(inputMsg.contains("admin_table_number=")) return;
+
+        // проверка на время, количество людей, номер стола, Имя, телефонный номер
+        if(inputMsg != null && !new BotResponse().hasValue(inputMsg)) {
+            if (inputMsg.contains("time")) {
+                this.setBookingTime(inputMsg.split("-")[1]);
+            } else if (inputMsg.contains("table_num")) {
+                this.setTableNum(Integer.parseInt(inputMsg.split("[=&]")[1]));
+                this.setPersonCount(inputMsg.split("[=&]")[3]);
+            } else if (botStateEnum.equals(BotStateEnum.BOOKING_ASK_NAME) ||
+                            botStateEnum.equals(BotStateEnum.CHANGE_USER_NAME) &&
+                            inputMsg.matches("[а-яёА-ЯЁ]+")) {
+                this.setName(inputMsg);
+            } else if (botStateEnum.equals(BotStateEnum.BOOKING_ASK_NUMBER) ||
+                            botStateEnum.equals(BotStateEnum.CHANGE_USER_NUM) &&
+                            inputMsg.matches("[0-9]+")){
+                this.setPhoneNumber(inputMsg);
+            }
+        }
+
     }
 }

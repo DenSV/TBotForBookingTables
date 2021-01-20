@@ -2,12 +2,12 @@ package ru.home.charlieblack_bot.botstate.handlers.bookingHandler.bookingImp;
 
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import ru.home.charlieblack_bot.botstate.BotStateEnum;
 import ru.home.charlieblack_bot.botstate.handlers.Booking;
-import ru.home.charlieblack_bot.botstate.handlers.BookingAbstract;
-import ru.home.charlieblack_bot.botstate.handlers.BookingCore;
+import ru.home.charlieblack_bot.botstate.handlers.AbstractBooking;
 
-public class BookAskName extends BookingAbstract implements Booking {
+import static ru.home.charlieblack_bot.botstate.handlers.BookingCore.*;
+
+public class BookAskName extends AbstractBooking implements Booking {
 
     public BookAskName(Update update) { super(update); }
 
@@ -20,38 +20,34 @@ public class BookAskName extends BookingAbstract implements Booking {
 
     private SendMessage processResponse(String phoneNumber){
 
-        String replyMessage = "";
-
-        setNameAndCurrentBotState();
+        userDataCache.saveUserProfileData(userId, profileData);
 
         if (phoneNumber == null){
-            return messagesService.getReplyMessage(userId,"Введите номер мобильного телефона для связи").setReplyMarkup(BookingCore.getReplyKeyboardContact());
+            return messagesService.getReplyMessage(userId,"Введите номер мобильного телефона для связи")
+                    .setReplyMarkup(getReplyKeyboardContact());
 
 
         } else {
 
-            tableBookingHistoryCache.save(profileData, 60);
-            userDataCache.setUsersCurrentBotState(userId, BotStateEnum.getMainBotState(currentBotStateEnum));
-            return messagesService.getReplyMessage(userId, getReplyMessageIfPhoneNull()).setReplyMarkup(BookingCore.getReplyKeyBoardBackToStartPage());
+            tableBookingHistoryCache.save(profileData, 150);
+            userDataCache.setUsersCurrentBotState(userId, currentBotStateEnum.getMainBotState());
+
+            //Отправка уведомления о бронировании админу
+            sendMessageToAdmin(profileData);
+
+            return messagesService.getReplyMessage(userId, getReplyMessageIfPhoneNull())
+                    .setReplyMarkup(getReplyKeyBoardBackToStartPage());
         }
 
 
     }
 
-    private void setNameAndCurrentBotState(){
-        profileData.setChatId(userId);
-        profileData.setName(inputMsg);
-        userDataCache.setUsersCurrentBotState(userId, BotStateEnum.getNextBotState(currentBotStateEnum));
-
-        userDataCache.saveUserProfileData(userId, profileData);
-
-    }
-
     private String getReplyMessageIfPhoneNull(){
 
-        return "Столик забронирован на имя " + profileData.getName() +
+        return "Столик № "+ profileData.getTableNum() + " " + profileData.getBookingTime() +
+                " забронирован на имя " + profileData.getName() +
                 "\n" + "Телефон для связи: " + profileData.getPhoneNumber() +
-                "\nЖдем вас к " + profileData.getBookingTime();
+                "\n Заяка отправлена на рассмотрение. Ждите ответа от администратора";
 
     }
 

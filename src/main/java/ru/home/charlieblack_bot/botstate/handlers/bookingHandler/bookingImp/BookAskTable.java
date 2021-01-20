@@ -7,15 +7,23 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import ru.home.charlieblack_bot.botstate.BotStateEnum;
 import ru.home.charlieblack_bot.botstate.handlers.Booking;
-import ru.home.charlieblack_bot.botstate.handlers.BookingAbstract;
-import ru.home.charlieblack_bot.botstate.handlers.BookingCore;
+import ru.home.charlieblack_bot.botstate.handlers.AbstractBooking;
+import ru.home.charlieblack_bot.model.TableInfo;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class BookAskTable extends BookingAbstract implements Booking {
+import static ru.home.charlieblack_bot.botstate.handlers.BookingCore.*;
 
-    public BookAskTable(Update update) { super(update); }
+public class BookAskTable extends AbstractBooking implements Booking {
+
+    private String replyMessage;
+    private List<TableInfo> freeTables;
+
+    public BookAskTable(Update update) {
+        super(update);
+        this.freeTables = getFreeTables(profileData.getBookingTime());
+    }
 
     @Override
     public SendMessage getResponse() {
@@ -26,9 +34,22 @@ public class BookAskTable extends BookingAbstract implements Booking {
 
     private SendMessage processResponse(String userName, String userNumber){
 
-        setTableNumAndCurrentBotState();
+        //проверка входящих данных
+        if(update.hasMessage() && update.getMessage().hasText()){
+            userDataCache.setUsersCurrentBotState(userId, currentBotStateEnum);
+            return messagesService.getReplyMessage(userId, "Данные введены неправильно. " +
+                    "Выберите номер стола из списка")
+                    .setReplyMarkup(getInlineMessageButtons(freeTables));
+        }
 
-        String replyMessage = "";
+        if (freeTables.isEmpty()) {
+            userDataCache.setUsersCurrentBotState(userId, BotStateEnum.BOOKING_ASK_TIME);
+            return messagesService.getReplyMessage(userId, "К сожалению, все столы на "
+                    + profileData.getBookingTime()
+                    + " заняты. Выберите другое время")
+                    .setReplyMarkup(getInlineKeyBoardTimeButtons());
+        }
+
 
         if(userName == null) {
             replyMessage = "На какое имя бронировать?";
@@ -36,26 +57,23 @@ public class BookAskTable extends BookingAbstract implements Booking {
         } else if (userNumber == null){
             userDataCache.setUsersCurrentBotState(userId, BotStateEnum.BOOKING_ASK_NUMBER);
             replyMessage = "Введите номер мобильного телефона для связи";
-            return messagesService.getReplyMessage(userId, replyMessage).setReplyMarkup(BookingCore.getReplyKeyboardContact());
+            return messagesService.getReplyMessage(userId, replyMessage).setReplyMarkup(getReplyKeyboardContact());
         } else {
 
-            tableBookingHistoryCache.save(profileData, 60);
+            tableBookingHistoryCache.save(profileData, 150);
 
-            userDataCache.setUsersCurrentBotState(userId, BotStateEnum.getMainBotState(currentBotStateEnum));
-            replyMessage =  "Столик забронирован на имя " + profileData.getName() +
+            //Отправка уведомления о бронировании админу
+            sendMessageToAdmin(profileData);
+
+
+
+            userDataCache.setUsersCurrentBotState(userId, currentBotStateEnum.getMainBotState());
+            replyMessage =  "Столик № "+ profileData.getTableNum() + " " + profileData.getBookingTime() +
+                            " забронирован на имя " + profileData.getName() +
                             "\n" + "Телефон для связи: " + profileData.getPhoneNumber() +
-                            "\nЖдем вас к " + profileData.getBookingTime();
+                            "\n Заяка отправлена на рассмотрение. Ждите ответа от администратора";
             return  messagesService.getReplyMessage(userId, replyMessage).setReplyMarkup(getReplyKeyBoardMarkup());
         }
-
-    }
-
-    private void setTableNumAndCurrentBotState(){
-
-        profileData.setChatId(userId);
-        userDataCache.setUsersCurrentBotState(userId, BotStateEnum.getNextBotState(currentBotStateEnum));
-        profileData.setTableNum(Integer.parseInt(inputMsg));
-
 
     }
 

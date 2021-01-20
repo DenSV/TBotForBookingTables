@@ -1,4 +1,4 @@
-package ru.home.charlieblack_bot.botstate.handlers.bookingHandler;
+package ru.home.charlieblack_bot.botstate.handlers.administrativeHandler;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -9,15 +9,13 @@ import ru.home.charlieblack_bot.botstate.InputMessageHandler;
 import ru.home.charlieblack_bot.botstate.handlers.AbstractHandler;
 import ru.home.charlieblack_bot.cache.UserDataCache;
 
-/**
- * Задает вопросы по бронированию
- */
-
 @Slf4j
 @Component
-public class BookingHandler extends AbstractHandler implements InputMessageHandler {
+public class AdministrationHandler extends AbstractHandler implements InputMessageHandler {
 
-    public BookingHandler(UserDataCache userDataCache) { super(userDataCache); }
+    public AdministrationHandler(UserDataCache userDataCache) {
+        super(userDataCache);
+    }
 
     @Override
     public SendMessage handle(Update update) {
@@ -25,8 +23,5 @@ public class BookingHandler extends AbstractHandler implements InputMessageHandl
     }
 
     @Override
-    public BotStateEnum getHandlerName() {
-        return BotStateEnum.BOOKING_BOOK;
-    }
-
+    public BotStateEnum getHandlerName() { return BotStateEnum.ADMIN_START; }
 }

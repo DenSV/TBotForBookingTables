@@ -1,56 +1,76 @@
 package ru.home.charlieblack_bot.botstate.handlers.bookingHandler.bookingImp;
 
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import ru.home.charlieblack_bot.AppContProvider;
+import ru.home.charlieblack_bot.ScheduledTasks;
 import ru.home.charlieblack_bot.botstate.BotStateEnum;
 import ru.home.charlieblack_bot.botstate.handlers.Booking;
-import ru.home.charlieblack_bot.botstate.handlers.BookingAbstract;
+import ru.home.charlieblack_bot.botstate.handlers.AbstractBooking;
+import ru.home.charlieblack_bot.model.TableInfo;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class BookAskTime extends BookingAbstract implements Booking {
+import static ru.home.charlieblack_bot.botstate.handlers.BookingCore.*;
 
-    public BookAskTime(Update update) { super(update); }
+public class BookAskTime extends AbstractBooking implements Booking {
+
+    private List<TableInfo> freeTables;
+
+    public BookAskTime(Update update) {
+        super(update);
+        this.freeTables = getFreeTables(profileData.getBookingTime());
+    }
 
     @Override
     public SendMessage getResponse() {
 
-        setTimeAndCurrentBotState();
+        //проверка входящих данных
+        if(update.hasMessage() && update.getMessage().hasText()){
 
-        return messagesService.getReplyMessage(userId, "Сколько будет человек?")
-                .setReplyMarkup(getInlineKeyBoard());
+            userDataCache.setUsersCurrentBotState(userId, currentBotStateEnum);
+
+            return messagesService.getReplyMessage(userId, "Данные введены некорректно. Выберите время из списка")
+                    .setReplyMarkup(getInlineKeyBoardTimeButtons());
+        }
+
+
+        if(inputMsg.equals("Отменить бронь")){
+
+            ScheduledTasks scheduledTasks = AppContProvider.getApplicationContext().getBean(ScheduledTasks.class);
+            scheduledTasks.removeUserForNotification(userId);
+            tableBookingHistoryCache.deleteByBookingTimeAndUserId(profileData, 150);
+            userDataCache.setUsersCurrentBotState(userId, BotStateEnum.SHOW_STARTPAGE);
+
+            sendMessageToAdminIfBookCancelled(profileData);
+
+            return messagesService.getReplyMessage(userId, "Ваша бронь отменена")
+                    .setReplyMarkup(getReplyKeyBoardBackToStartPage());
+
+        } else if(inputMsg.equals("Изменить время")){
+
+            tableBookingHistoryCache.deleteByBookingTimeAndUserId(profileData, 150);
+            userDataCache.setUsersCurrentBotState(userId, currentBotStateEnum);
+
+            editMessage( new EditMessageText()
+                    .setChatId(update.getCallbackQuery().getMessage().getChatId())
+                    .setMessageId(update.getCallbackQuery().getMessage().getMessageId())
+                    .setText("Выберите другое время")
+                    .setReplyMarkup(getInlineKeyBoardTimeButtons()));
+            return null;
+
+        } else {
+
+            editMessage( new EditMessageText()
+                    .setChatId(update.getCallbackQuery().getMessage().getChatId())
+                    .setMessageId(update.getCallbackQuery().getMessage().getMessageId())
+                    .setText("Выберите столик")
+                    .setReplyMarkup(getInlineMessageButtons(freeTables)));
+            return null;
+
+        }
 
     }
 
-
-    private void setTimeAndCurrentBotState(){
-        profileData.setChatId(userId);
-        profileData.setBookingTime(inputMsg);
-        userDataCache.setUsersCurrentBotState(userId, BotStateEnum.getNextBotState(currentBotStateEnum));
-    }
-
-    private InlineKeyboardMarkup getInlineKeyBoard(){
-        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-
-        InlineKeyboardButton from1to3 = new InlineKeyboardButton().setText("1-3").setCallbackData("3");
-        InlineKeyboardButton from4to6 = new InlineKeyboardButton().setText("4-6").setCallbackData("6");
-        InlineKeyboardButton from7to9 = new InlineKeyboardButton().setText("7-9").setCallbackData("9");
-        InlineKeyboardButton moreThan10 = new InlineKeyboardButton().setText("больше 9").setCallbackData("10");
-
-        List<InlineKeyboardButton> keyboardButtonsRow = new ArrayList<>();
-        keyboardButtonsRow.add(from1to3);
-        keyboardButtonsRow.add(from4to6);
-        keyboardButtonsRow.add(from7to9);
-        keyboardButtonsRow.add(moreThan10);
-        List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
-        rowList.add(keyboardButtonsRow);
-
-        inlineKeyboardMarkup.setKeyboard(rowList);
-
-        return inlineKeyboardMarkup;
-
-    }
 }

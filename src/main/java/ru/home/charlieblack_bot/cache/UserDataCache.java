@@ -5,6 +5,7 @@ import ru.home.charlieblack_bot.botstate.BotStateEnum;
 import ru.home.charlieblack_bot.model.UserProfileData;
 import ru.home.charlieblack_bot.service.UsersProfileDataService;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -13,6 +14,7 @@ public class UserDataCache implements DataCache {
     private HashMap<Long, BotStateEnum> botStateCache = new HashMap<>();
     private HashMap<Long, UserProfileData> userProfileCache = new HashMap<>();
     private UsersProfileDataService usersProfileDataService;
+    private UserProfileData userProfileData;
 
 
     public UserDataCache(UsersProfileDataService usersProfileDataService){
@@ -24,6 +26,8 @@ public class UserDataCache implements DataCache {
             botStateCache.put(profileData.getChatId(), BotStateEnum.BOOKING_BOOK);
             userProfileCache.put(profileData.getChatId(), profileData);
         }
+
+        this.userProfileData = new UserProfileData();
     }
 
     @Override
@@ -59,11 +63,43 @@ public class UserDataCache implements DataCache {
     }
 
     public boolean isUserExist(long userId){
-        if(userProfileCache.get(userId) != null){
-            return true;
-        } else {
-            return false;
-        }
+        return userProfileCache.get(userId) != null;
     }
 
+    public void clearDataAboutTables(){
+        userProfileCache.forEach((aLong, profileData) -> {
+            profileData.setTableNum(0);
+            profileData.setPersonCount(null);
+            profileData.setBookingTime(null);
+        });
+
+        usersProfileDataService.clearDataAboutTables();
+    }
+
+    public void clearDataAboutTablesByUserId(long userId){
+        UserProfileData profileData = userProfileCache.get(userId);
+        profileData.setTableNum(0);
+        profileData.setPersonCount(null);
+        profileData.setBookingTime(null);
+        userProfileCache.put(userId, profileData);
+
+        usersProfileDataService.saveUserData(profileData);
+    }
+
+    public List<UserProfileData> getAdminList(){
+        List<UserProfileData> result = new ArrayList<>(userProfileCache.values());
+
+        result.removeIf(profileData -> profileData.getUserRole().equals("user"));
+
+        return result;
+
+    }
+
+    public UserProfileData getProfileData() {
+        return userProfileData;
+    }
+
+    public void setProfileData(UserProfileData userProfileData) {
+        this.userProfileData = userProfileData;
+    }
 }

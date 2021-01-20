@@ -1,5 +1,6 @@
 package ru.home.charlieblack_bot.service;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.home.charlieblack_bot.model.TableInfo;
@@ -17,17 +18,11 @@ public class TableInfoService {
         this.tableInfoPostgreRepository = tableInfoPostgreRepository;
     }
 
-    public boolean existsById(int id){
-        return tableInfoPostgreRepository.existsById(id);
-    }
-
-    public TableInfo getTableInfoById(int id){ return tableInfoPostgreRepository.findById(id); }
-
     public List<TableInfo> getAllRows(){
         return tableInfoPostgreRepository.findAll();
     }
 
-    public void saveTableInfo(int tableNum, LocalTime bookingTime, int capacity){
+    public void saveTableInfo(int tableNum, LocalTime bookingTime, String capacity){
         TableInfo tableInfo = new TableInfo();
 
         tableInfo.setBookingTime(bookingTime);
@@ -43,8 +38,19 @@ public class TableInfoService {
         return tableInfoPostgreRepository.findAllByBookingTimeAndBooked(bookingTime, booked);
     }
 
+    @Async
     public void saveAll(List<TableInfo> tableInfoList){
         tableInfoPostgreRepository.saveAll(tableInfoList);
     }
 
+    @Async
+    public void makeAllTableFree(){
+        List<TableInfo> bookedTables = tableInfoPostgreRepository.findAllByBooked(true);
+        if (!bookedTables.isEmpty()){
+            bookedTables.forEach(tableInfo -> tableInfo.setBooked(false));
+        }
+
+        tableInfoPostgreRepository.saveAll(bookedTables);
+
+    }
 }

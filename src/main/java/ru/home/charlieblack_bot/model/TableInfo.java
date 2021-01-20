@@ -30,7 +30,7 @@ public class TableInfo implements Serializable, Comparable<TableInfo> {
     private String bookingTime;
 
     @Column
-    private int capacity;
+    private String capacity;
 
     @Column
     private boolean booked;
@@ -39,7 +39,7 @@ public class TableInfo implements Serializable, Comparable<TableInfo> {
 
     }
 
-    public TableInfo(int tableNumber, int capacity, String bookingName, boolean booked){
+    public TableInfo(int tableNumber, String capacity, String bookingName, boolean booked){
         this.tableNumber = tableNumber;
         this.capacity = capacity;
         this.bookingName = bookingName;
