@@ -27,7 +27,7 @@ public class UsersProfileDataService implements DataService{
 
         profilePostgreRepository.save(userProfileData);
     }
-    
+
     public UserProfileData getUserProfileData(long chatId) {return profilePostgreRepository.findByChatId(chatId);}
 
     public List<UserProfileData> getAllUsers(){ return profilePostgreRepository.findAll(); }

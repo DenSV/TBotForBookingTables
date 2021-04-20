@@ -1,6 +1,7 @@
 package ru.home.charlieblack_bot.cache;
 
 import org.springframework.stereotype.Component;
+import ru.home.charlieblack_bot.AppContProvider;
 import ru.home.charlieblack_bot.model.TableInfo;
 import ru.home.charlieblack_bot.service.TableInfoService;
 
@@ -15,11 +16,12 @@ public class TableInfoCache {
 
     public TableInfoCache(TableInfoService tableInfoService) {
         this.tableInfoService = tableInfoService;
+        tableInfoService.getAllRows().forEach(tableInfo -> tableInfoCache.put(getKey(tableInfo), tableInfo));
 
-        List<TableInfo> tableInfoList = tableInfoService.getAllRows();
+    }
 
-        tableInfoList.forEach(tableInfo -> tableInfoCache.put(tableInfo.getTableNumber() + tableInfo.getBookingTime(), tableInfo));
-
+    public static TableInfoCache getBeanFromContext(){
+        return AppContProvider.getApplicationContext().getBean(TableInfoCache.class);
     }
 
     public TableInfo getTableInfoByTableNumAndBookingTime(int tableNum, String bookingTime){
@@ -28,11 +30,7 @@ public class TableInfoCache {
 
     public void saveAll(List<TableInfo> tableInfoList){
 
-        for (TableInfo tableInfo: tableInfoList) {
-            tableInfoCache.get(tableInfo.getTableNumber() + tableInfo.getBookingTime())
-                    .setBooked(tableInfo.isBooked());
-
-        }
+        tableInfoList.forEach(tableInfo -> tableInfoCache.get(getKey(tableInfo)).setBooked(tableInfo.isBooked()));
 
         tableInfoService.saveAll(tableInfoList);
 
@@ -58,5 +56,9 @@ public class TableInfoCache {
             return tableInfoCache.get(tableNum+bookingTime).isBooked();
         }
 
+    }
+
+    private static String getKey(TableInfo tableInfo){
+        return tableInfo.getTableNumber() + tableInfo.getBookingTime();
     }
 }

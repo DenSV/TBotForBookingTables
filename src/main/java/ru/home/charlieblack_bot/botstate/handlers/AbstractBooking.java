@@ -41,4 +41,28 @@ public abstract class AbstractBooking implements Booking {
 
     }
 
+    protected void setCurrentBotState(){
+        userDataCache.setUsersCurrentBotState(userId, currentBotStateEnum);
+    }
+
+    protected void setAnotherBotState(BotStateEnum botState){
+        userDataCache.setUsersCurrentBotState(userId, botState);
+    }
+
+    protected void setMainBotState(){
+        userDataCache.setUsersCurrentBotState(userId, currentBotStateEnum.getMainBotState());
+    }
+    protected void saveBookingHistory(){
+        tableBookingHistoryCache.save(profileData, 150);
+    }
+
+    protected void saveUserData(){
+        userDataCache.saveUserProfileData(userId, profileData);
+    }
+
+    protected String getReplyMessage(){
+
+        return "Заяка отправлена на рассмотрение. В ближайшее время " +
+                "администратор свяжется с вами и подберет для вас столик";
+    }
 }

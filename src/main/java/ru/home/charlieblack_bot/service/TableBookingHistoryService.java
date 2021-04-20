@@ -3,8 +3,10 @@ package ru.home.charlieblack_bot.service;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.home.charlieblack_bot.model.AllTableBookingHistory;
 import ru.home.charlieblack_bot.model.TableBookingHistory;
 import ru.home.charlieblack_bot.model.UserProfileData;
+import ru.home.charlieblack_bot.repository.AllTableBookingHistoryPostgreRepository;
 import ru.home.charlieblack_bot.repository.TableBookingHistoryPostgreRepository;
 
 import java.util.List;
@@ -14,9 +16,12 @@ import java.util.List;
 public class TableBookingHistoryService implements DataService{
 
     private TableBookingHistoryPostgreRepository tableBookingHistoryPostgreRepository;
+    private AllTableBookingHistoryPostgreRepository allTableBookingHistoryPostgreRepository;
 
-    public TableBookingHistoryService(TableBookingHistoryPostgreRepository tableBookingHistoryPostgreRepository) {
+    public TableBookingHistoryService(TableBookingHistoryPostgreRepository tableBookingHistoryPostgreRepository,
+                                      AllTableBookingHistoryPostgreRepository allTableBookingHistoryPostgreRepository) {
         this.tableBookingHistoryPostgreRepository = tableBookingHistoryPostgreRepository;
+        this.allTableBookingHistoryPostgreRepository = allTableBookingHistoryPostgreRepository;
     }
 
     @Async
@@ -34,11 +39,13 @@ public class TableBookingHistoryService implements DataService{
 
     public void save(TableBookingHistory tableBookingHistory){
         tableBookingHistoryPostgreRepository.save(tableBookingHistory);
+        allTableBookingHistoryPostgreRepository.save(new AllTableBookingHistory(tableBookingHistory));
+
     }
 
     @Async
-    public void deleteByBookingTimeAndUserID(UserProfileData profileData, String timeForBooking){
-        tableBookingHistoryPostgreRepository.deleteByBookingTimeAndUserChatId(timeForBooking, profileData.getChatId());
+    public void deleteByBookingTimeAndUserID(UserProfileData profileData){
+        tableBookingHistoryPostgreRepository.deleteByBookingTimeAndUserChatId(profileData.getBookingTime(), profileData.getChatId());
     }
 
     @Async

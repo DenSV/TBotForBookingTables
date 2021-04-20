@@ -1,6 +1,5 @@
 package ru.home.charlieblack_bot;
 
-import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -23,32 +22,20 @@ import java.util.TimeZone;
 @Component
 public class ScheduledTasks {
 
-    private TableBookingHistoryCache tableBookingHistoryCache;
-    private TableInfoCache tableInfoCache;
-    private UserDataCache userDataCache;
     private Map<Long, String> bookingTimeMap = new HashMap<>();
-
-    public ScheduledTasks() {
-
-        ApplicationContext context = AppContProvider.getApplicationContext();
-
-        this.tableBookingHistoryCache = context.getBean(TableBookingHistoryCache.class);
-        this.tableInfoCache = context.getBean(TableInfoCache.class);
-        this.userDataCache = context.getBean(UserDataCache.class);
-
-    }
 
     @Async
     @Scheduled(cron = "0 0 6 * * *", zone = "Europe/Moscow")
     public void startBookingControlling(){
+
         //очищение истории бронирования
-        tableBookingHistoryCache.deleteAllHistory();
+        TableBookingHistoryCache.getBeanFromContext().deleteAllHistory();
 
         //освобождение столов
-        tableInfoCache.makeAllTablesFree();
+        TableInfoCache.getBeanFromContext().makeAllTablesFree();
 
         //очищение информации о столах у пользователей
-        userDataCache.clearDataAboutTables();
+        UserDataCache.getBeanFromContext().clearDataAboutTables();
 
         bookingTimeMap.clear();
     }

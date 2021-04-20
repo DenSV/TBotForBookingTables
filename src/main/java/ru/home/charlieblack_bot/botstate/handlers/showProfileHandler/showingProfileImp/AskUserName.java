@@ -15,7 +15,9 @@ public class AskUserName extends AbstractBooking implements Booking {
 
     @Override
     public SendMessage getResponse() {
-        userDataCache.setUsersCurrentBotState(userId, BotStateEnum.CHANGE_USER_NAME);
+        setAnotherBotState(BotStateEnum.CHANGE_USER_NAME);
         return messagesService.getReplyMessage(userId, "Введите имя");
     }
+
+
 }

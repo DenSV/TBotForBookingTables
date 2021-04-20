@@ -1,13 +1,20 @@
 package ru.home.charlieblack_bot.botstate.handlers.bookingHandler;
 
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
+import ru.home.charlieblack_bot.botstate.handlers.BookingMapping;
 
 class BookingHandlerTest {
 
+    private BookingMapping bookingMapping;
+
+    /*@Before
+    public void setAll(){
+        Update update = null;
+        bookingMapping = new BookingMapping(update);
+    }*/
+
     @Test
-    void handle() {
+    void testSizeMap() {
 
     }
 }

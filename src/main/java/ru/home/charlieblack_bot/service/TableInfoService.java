@@ -47,7 +47,11 @@ public class TableInfoService {
     public void makeAllTableFree(){
         List<TableInfo> bookedTables = tableInfoPostgreRepository.findAllByBooked(true);
         if (!bookedTables.isEmpty()){
-            bookedTables.forEach(tableInfo -> tableInfo.setBooked(false));
+            bookedTables.forEach(tableInfo -> {
+                tableInfo.setBooked(false);
+                tableInfo.setBookingName(null);
+            });
+
         }
 
         tableInfoPostgreRepository.saveAll(bookedTables);

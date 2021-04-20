@@ -2,15 +2,18 @@ package ru.home.charlieblack_bot.cache;
 
 import org.springframework.stereotype.Component;
 import ru.home.charlieblack_bot.AppContProvider;
+import ru.home.charlieblack_bot.ScheduledTasks;
 import ru.home.charlieblack_bot.model.TableBookingHistory;
 import ru.home.charlieblack_bot.model.TableInfo;
 import ru.home.charlieblack_bot.model.UserProfileData;
 import ru.home.charlieblack_bot.service.TableBookingHistoryService;
 
+import javax.annotation.PostConstruct;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class TableBookingHistoryCache {
@@ -18,40 +21,47 @@ public class TableBookingHistoryCache {
     private Map<String, TableBookingHistory> tableBookingHistoryCache = new HashMap<>();
     private TableBookingHistoryService tableBookingHistoryService;
     private TableInfoCache tableInfoCache;
+    private UserDataCache userDataCache;
     private List<String> messagesForAdmins = new ArrayList<>();
 
 
     public TableBookingHistoryCache(TableBookingHistoryService tableBookingHistoryService,
-                                    TableInfoCache tableInfoCache){
+                                    TableInfoCache tableInfoCache,
+                                    UserDataCache userDataCache){
         this.tableBookingHistoryService = tableBookingHistoryService;
         this.tableInfoCache = tableInfoCache;
+        this.userDataCache = userDataCache;
 
-        List<TableBookingHistory> tableBookingHistoryList = tableBookingHistoryService.getAllRows();
-        tableBookingHistoryList.forEach(tableBookingHistory -> tableBookingHistoryCache.put(tableBookingHistory.getUserChatId()+
-                "_"+ tableBookingHistory.getTimeReserved(), tableBookingHistory));
     }
 
-    public TableBookingHistory getTableBookingHistoryByUserId(long userId){
+    @PostConstruct
+    public void postConstruct(){
+        tableBookingHistoryService.getAllRows()
+                .forEach(tableBookingHistory -> tableBookingHistoryCache.put(getKey(tableBookingHistory), tableBookingHistory));
+    }
 
+    public static TableBookingHistoryCache getBeanFromContext(){
+        return AppContProvider.getApplicationContext().getBean(TableBookingHistoryCache.class);
+    }
 
-        for (String key: tableBookingHistoryCache.keySet()) {
-            if(key.split("_")[0].equals(String.valueOf(userId))){
-                return tableBookingHistoryCache.get(key);
-            }
-        }
-        return null;
+    public TableBookingHistory getTableBookingHistoryByUserId(Long userId){
+
+        return tableBookingHistoryCache.entrySet()
+                .stream()
+                .filter(entry -> keyIsEqualsUserId(entry.getKey(), userId))
+                .findFirst()
+                .get()
+                .getValue();
 
     }
 
     public TableBookingHistory getTableBookingHistoryByPersonalData(String personalData){
 
-        for (Map.Entry<String, TableBookingHistory> entry: tableBookingHistoryCache.entrySet()) {
-            if(entry.getValue().getPersonalData().equals(personalData)){
-                return entry.getValue();
-            }
-        }
-
-        return null;
+        return tableBookingHistoryCache.values()
+                .stream()
+                .filter(value -> value.getPersonalData().equals(personalData))
+                .findFirst()
+                .get();
     }
 
     public void save(UserProfileData profileData, int duration){
@@ -64,14 +74,24 @@ public class TableBookingHistoryCache {
         makesTableBooked(tableBookingHistory);
 
         tableBookingHistoryService.saveTableBookingHistory(tableBookingHistory);
+
+    }
+
+    public void saveWithoutBookingTables(UserProfileData profileData, int duration){
+
+        TableBookingHistory tableBookingHistory = initializeTableBookingHistory(profileData, duration);
+
+        tableBookingHistoryCache.put(profileData.getChatId() +
+                "_" + tableBookingHistory.getTimeReserved(), tableBookingHistory);
+
+        tableBookingHistoryService.saveTableBookingHistory(tableBookingHistory);
+
     }
 
     private TableBookingHistory initializeTableBookingHistory(UserProfileData profileData, int duration){
 
         //Берем стол из БД
         TableBookingHistory tableBookingHistory = new TableBookingHistory();
-
-        TableInfo tableForBooking = tableInfoCache.getTableInfoByTableNumAndBookingTime(profileData.getTableNum(), profileData.getBookingTime());
 
         tableBookingHistory.setBookingTime(profileData.getBookingTime());
         tableBookingHistory.setUserChatId(profileData.getChatId());
@@ -85,11 +105,17 @@ public class TableBookingHistoryCache {
         Date date = new Date();
         tableBookingHistory.setTimeReserved(dateFormat.format(date));
         //добавить бронируем стол
-        tableBookingHistory.setTableInfo(tableForBooking);
-        tableBookingHistory.setTableNumId(tableForBooking.getId());
+
+
         tableBookingHistory.setPersonalData(profileData.getName() + " " + profileData.getPhoneNumber());
         if(profileData.getChatId() == 0) {
             tableBookingHistory.setBookingStatus("approved");
+            TableInfo tableForBooking =
+                    tableInfoCache.getTableInfoByTableNumAndBookingTime(
+                            profileData.getTableNum(),
+                            profileData.getBookingTime());
+            tableBookingHistory.setTableInfo(tableForBooking);
+            tableBookingHistory.setTableNumId(tableForBooking.getId());
         } else {
             tableBookingHistory.setBookingStatus("considering");
         }
@@ -98,65 +124,63 @@ public class TableBookingHistoryCache {
 
     }
 
-    public void deleteByBookingTimeAndUserId(UserProfileData profileData, int duration){
+    public void deleteByBookingTimeAndUserId(UserProfileData profileData){
 
-        TableBookingHistory tableBookingHistoryForRemove = new TableBookingHistory();
-        String keyForRemoving = "";
+        TableBookingHistory tableBookingHistoryForRemove = tableBookingHistoryCache.entrySet()
+                .stream().filter(entry -> keyIsEqualsUserId(entry.getKey(), profileData.getChatId()))
+                .findFirst()
+                .get()
+                .getValue();
 
-        for (String key: tableBookingHistoryCache.keySet()) {
-            if(key.split("_")[0].equals(String.valueOf(profileData.getChatId()))){
-                keyForRemoving = key;
-                tableBookingHistoryForRemove = tableBookingHistoryCache.get(key);
-                break;
-            }
-        }
 
-        if(!keyForRemoving.equals("")) tableBookingHistoryCache.remove(keyForRemoving);
-
-        String bookingTime = profileData.getBookingTime();
-        int tableNum = profileData.getTableNum();
+        tableBookingHistoryCache.keySet()
+                .removeIf(key -> keyIsEqualsUserId(key, profileData.getChatId()));
 
         makeTablesNonBooked(tableBookingHistoryForRemove);
 
-        TableBookingHistoryCache tableBookingHistoryCache = AppContProvider.getApplicationContext().getBean(TableBookingHistoryCache.class);
-
-
-        List<TableBookingHistory> tableBookingHistoryList = tableBookingHistoryCache.getBookingTimesOfTable(tableNum, bookingTime);
+        List<TableBookingHistory> tableBookingHistoryList = getBookingTimesOfTable(tableBookingHistoryForRemove);
         if(tableBookingHistoryList.size() > 0) {
 
             tableBookingHistoryList.forEach(this::makesTableBooked);
 
         }
 
-        tableBookingHistoryService.deleteByBookingTimeAndUserID(profileData, bookingTime);
+        tableBookingHistoryService.deleteByBookingTimeAndUserID(profileData);
+
+
+    }
+
+    public void deleteByBookingTimeAndUserIdWithoutBooking(UserProfileData profileData){
+
+        TableBookingHistory tableBookingHistoryForRemove = tableBookingHistoryCache.entrySet()
+                .stream().filter(entry -> keyIsEqualsUserId(entry.getKey(), profileData.getChatId()))
+                .findFirst()
+                .get()
+                .getValue();
+
+
+        tableBookingHistoryCache.keySet()
+                .removeIf(key -> keyIsEqualsUserId(key, profileData.getChatId()));
+
+        tableBookingHistoryService.deleteByBookingTimeAndUserID(profileData);
 
 
     }
 
     public void deleteByUserNameAndPhone(String userNameAndPhone){
 
-        TableBookingHistory tableBookingHistoryForRemove = new TableBookingHistory();
-        String keyForRemove = "";
+        TableBookingHistory tableBookingHistoryForRemove = tableBookingHistoryCache.values()
+                .stream()
+                .filter(value -> value.getPersonalData().equals(userNameAndPhone))
+                .findFirst()
+                .get();
 
-        for (Map.Entry<String, TableBookingHistory> entry: tableBookingHistoryCache.entrySet()) {
-            if(entry.getValue().getPersonalData().equals(userNameAndPhone)){
-                tableBookingHistoryForRemove = entry.getValue();
-                keyForRemove = entry.getKey();
-            }
-        }
-
-        if(!keyForRemove.equals("")) tableBookingHistoryCache.remove(keyForRemove);
+        tableBookingHistoryCache.entrySet()
+                .removeIf(value -> value.getValue().getPersonalData().equals(userNameAndPhone));
 
         makeTablesNonBooked(tableBookingHistoryForRemove);
 
-        TableBookingHistoryCache tableBookingHistoryCache = AppContProvider
-                .getApplicationContext()
-                .getBean(TableBookingHistoryCache.class);
-
-
-        List<TableBookingHistory> tableBookingHistoryList = tableBookingHistoryCache
-                .getBookingTimesOfTable(tableBookingHistoryForRemove.getTableInfo().getTableNumber(),
-                                        tableBookingHistoryForRemove.getBookingTime());
+        List<TableBookingHistory> tableBookingHistoryList = getBookingTimesOfTable(tableBookingHistoryForRemove);
         if(tableBookingHistoryList.size() > 0) {
 
             tableBookingHistoryList.forEach(this::makesTableBooked);
@@ -174,17 +198,25 @@ public class TableBookingHistoryCache {
 
     public boolean hasUserBooked(long userId){
 
-        for (String key: tableBookingHistoryCache.keySet()) {
-            if(key.split("_")[0].equals(String.valueOf(userId))){
-                return true;
-            }
-        }
-
-        return false;
+        return tableBookingHistoryCache.keySet()
+                .stream()
+                .anyMatch(key -> keyIsEqualsUserId(key, userId));
 
     }
 
+    public List<TableBookingHistory> getListOfBookingHistory(){
+        List<TableBookingHistory> result = new ArrayList<>(tableBookingHistoryCache.values());
+        return result;
+    }
+
     public void saveTableBookingHistory(long userId, TableBookingHistory tableBookingHistory){
+
+        ScheduledTasks scheduledTasks = AppContProvider.getApplicationContext().getBean(ScheduledTasks.class);
+
+        tableBookingHistory.setBookingStatus("approved");
+
+        scheduledTasks.addUserForNotification(userId, userDataCache.getUserProfileData(userId).getBookingTime());
+
         tableBookingHistoryCache.put(userId +
                 "_" + tableBookingHistory.getTimeReserved(), tableBookingHistory);
 
@@ -194,38 +226,34 @@ public class TableBookingHistoryCache {
     }
 
     public boolean hasConsidering(long userId){
-        for (String key: tableBookingHistoryCache.keySet()) {
-            if(key.split("_")[0].equals(String.valueOf(userId))){
-                if(tableBookingHistoryCache.get(key).getBookingStatus().equals("considering"))
-                    return true;
-            }
-        }
-        return false;
+
+        return tableBookingHistoryCache.entrySet()
+                .stream()
+                .anyMatch(entry -> keyIsEqualsUserId(entry.getKey(), userId) &&
+                entry.getValue().getBookingStatus().equals("considering"));
+
     }
 
     public List<TableBookingHistory> getAllApprovedBookingHistory(){
-        List<TableBookingHistory> result = new ArrayList<>();
-        tableBookingHistoryCache.forEach((aLong, tableBookingHistory) -> {
-            if(tableBookingHistory.getBookingStatus().equals("approved"))
-                result.add(tableBookingHistory);
-        });
 
-        return result;
+        return tableBookingHistoryCache.values()
+                .stream()
+                .filter(value -> value.getBookingStatus().equals("approved"))
+                .collect(Collectors.toList());
+
     }
 
-    public List<TableBookingHistory> getBookingTimesOfTable(int tableNum, String timeForBooking){
-        List<TableBookingHistory> result = new ArrayList<>();
+    public List<TableBookingHistory> getBookingTimesOfTable(TableBookingHistory tBHForRemove){
 
-        tableBookingHistoryCache.forEach((key, tableBookingHistory) -> {
-            if(tableBookingHistory.getTableInfo().getTableNumber() == tableNum
-                    && !tableBookingHistory.getBookingTime().equals(timeForBooking)){
-                result.add(tableBookingHistory);
-            }
-        });
+        int tableNum = tBHForRemove.getTableInfo().getTableNumber();
+        String timeForBooking = tBHForRemove.getBookingTime();
 
-        Collections.reverse(result);
-
-        return result;
+        return tableBookingHistoryCache.values()
+                .stream()
+                .filter(value -> value.getTableInfo().getTableNumber() == tableNum
+                                && !value.getBookingTime().equals(timeForBooking))
+                .sorted(Collections.reverseOrder())
+                .collect(Collectors.toList());
     }
 
     private void makesTableBooked(TableBookingHistory tableBookingHistory){
@@ -314,5 +342,13 @@ public class TableBookingHistoryCache {
 
     public void clearMessagesForAdmins(){
         messagesForAdmins.clear();
+    }
+
+    private boolean keyIsEqualsUserId(String key, Long userId){
+        return key.split("_")[0].equals(userId.toString());
+    }
+
+    private String getKey(TableBookingHistory tableBookingHistory){
+        return tableBookingHistory.getUserChatId()+ "_"+ tableBookingHistory.getTimeReserved();
     }
 }

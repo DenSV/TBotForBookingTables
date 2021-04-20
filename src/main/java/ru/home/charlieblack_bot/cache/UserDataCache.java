@@ -1,13 +1,14 @@
 package ru.home.charlieblack_bot.cache;
 
 import org.springframework.stereotype.Component;
+import ru.home.charlieblack_bot.AppContProvider;
 import ru.home.charlieblack_bot.botstate.BotStateEnum;
 import ru.home.charlieblack_bot.model.UserProfileData;
 import ru.home.charlieblack_bot.service.UsersProfileDataService;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class UserDataCache implements DataCache {
@@ -21,11 +22,10 @@ public class UserDataCache implements DataCache {
 
         this.usersProfileDataService = usersProfileDataService;
 
-        List<UserProfileData> userProfileDataListFromDB = usersProfileDataService.getAllUsers();
-        for (UserProfileData profileData: userProfileDataListFromDB) {
+        usersProfileDataService.getAllUsers().forEach(profileData -> {
             botStateCache.put(profileData.getChatId(), BotStateEnum.BOOKING_BOOK);
             userProfileCache.put(profileData.getChatId(), profileData);
-        }
+        });
 
         this.userProfileData = new UserProfileData();
     }
@@ -62,6 +62,10 @@ public class UserDataCache implements DataCache {
         usersProfileDataService.saveUserData(userProfileCache.get(userId));
     }
 
+    public static UserDataCache getBeanFromContext(){
+        return AppContProvider.getApplicationContext().getBean(UserDataCache.class);
+    }
+
     public boolean isUserExist(long userId){
         return userProfileCache.get(userId) != null;
     }
@@ -87,11 +91,12 @@ public class UserDataCache implements DataCache {
     }
 
     public List<UserProfileData> getAdminList(){
-        List<UserProfileData> result = new ArrayList<>(userProfileCache.values());
 
-        result.removeIf(profileData -> profileData.getUserRole().equals("user"));
-
-        return result;
+        return userProfileCache
+                .values()
+                .stream()
+                .filter(userProfileData1 -> userProfileData1.getUserRole().equals("admin"))
+                .collect(Collectors.toList());
 
     }
 

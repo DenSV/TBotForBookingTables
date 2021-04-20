@@ -17,7 +17,7 @@ public class BotResponse {
     public BotResponse() {
         response.put("/start",                  BotStateEnum.SHOW_STARTPAGE);
         response.put("Забронировать столик",    BotStateEnum.BOOKING_BOOK);
-        response.put("Контактные данные",       BotStateEnum.SHOW_USER_PROFILEDATA);
+        //response.put("Контактные данные",       BotStateEnum.SHOW_USER_PROFILEDATA);
         response.put("О кальянной",             BotStateEnum.SHOW_ACTUAL_INFORMATION);
         response.put("Вернуться на главную",    BotStateEnum.SHOW_STARTPAGE);
         response.put("Изменить имя",            BotStateEnum.ASK_USER_NAME);

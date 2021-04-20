@@ -54,6 +54,14 @@ public class TableInfo implements Serializable, Comparable<TableInfo> {
         this.bookingTime = bookingTime;
     }
 
+    public String getUserNameFromBookingName(){
+        return bookingName.split(" ")[0];
+    }
+
+    public String getUserPhoneFromBookingName(){
+        return bookingName.split(" ")[1];
+    }
+
     @Override
     public int compareTo(TableInfo o) {
         return tableNumber - o.getTableNumber();

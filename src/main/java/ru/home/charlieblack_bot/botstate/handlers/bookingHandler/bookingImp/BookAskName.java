@@ -2,6 +2,7 @@ package ru.home.charlieblack_bot.botstate.handlers.bookingHandler.bookingImp;
 
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import ru.home.charlieblack_bot.botstate.handlers.Booking;
 import ru.home.charlieblack_bot.botstate.handlers.AbstractBooking;
 
@@ -9,46 +10,53 @@ import static ru.home.charlieblack_bot.botstate.handlers.BookingCore.*;
 
 public class BookAskName extends AbstractBooking implements Booking {
 
-    public BookAskName(Update update) { super(update); }
+    private boolean hasPhoneNumber;
+
+    public BookAskName(Update update) {
+        super(update);
+        this.hasPhoneNumber = profileData.hasPhoneNumber();
+    }
 
     @Override
     public SendMessage getResponse() {
 
-        return processResponse(profileData.getPhoneNumber());
+        return processResponse();
 
     }
 
-    private SendMessage processResponse(String phoneNumber){
+    private SendMessage processResponse(){
 
-        userDataCache.saveUserProfileData(userId, profileData);
+        saveUserData();
 
-        if (phoneNumber == null){
-            return messagesService.getReplyMessage(userId,"Введите номер мобильного телефона для связи")
-                    .setReplyMarkup(getReplyKeyboardContact());
+        return messagesService.getReplyMessage(userId, getReplyMessage()).setReplyMarkup(getKeyboard());
 
+    }
 
+    @Override
+    protected String getReplyMessage() {
+        if(!hasPhoneNumber){
+            return "Введите номер мобильного телефона для связи";
         } else {
-
-            tableBookingHistoryCache.save(profileData, 150);
-            userDataCache.setUsersCurrentBotState(userId, currentBotStateEnum.getMainBotState());
-
-            //Отправка уведомления о бронировании админу
-            sendMessageToAdmin(profileData);
-
-            return messagesService.getReplyMessage(userId, getReplyMessageIfPhoneNull())
-                    .setReplyMarkup(getReplyKeyBoardBackToStartPage());
+            return super.getReplyMessage();
         }
 
-
     }
 
-    private String getReplyMessageIfPhoneNull(){
+    @Override
+    protected void saveBookingHistory() {
+        tableBookingHistoryCache.saveWithoutBookingTables(profileData, 150);
+    }
 
-        return "Столик № "+ profileData.getTableNum() + " " + profileData.getBookingTime() +
-                " забронирован на имя " + profileData.getName() +
-                "\n" + "Телефон для связи: " + profileData.getPhoneNumber() +
-                "\n Заяка отправлена на рассмотрение. Ждите ответа от администратора";
-
+    private ReplyKeyboard getKeyboard(){
+        if(!hasPhoneNumber){
+            return getReplyKeyboardContact();
+        } else {
+            saveBookingHistory();
+            setMainBotState();
+            //Отправка уведомления о бронировании админу
+            sendMessageToAdmin(profileData);
+            return getReplyKeyBoardBackToStartPage();
+        }
     }
 
 }

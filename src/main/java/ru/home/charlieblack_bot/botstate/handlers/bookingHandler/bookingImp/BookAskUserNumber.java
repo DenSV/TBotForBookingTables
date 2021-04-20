@@ -14,8 +14,8 @@ public class BookAskUserNumber extends AbstractBooking implements Booking {
     @Override
     public SendMessage getResponse() {
 
-        userDataCache.saveUserProfileData(userId, profileData);
-        tableBookingHistoryCache.save(profileData, 150);
+        saveUserData();
+        saveBookingHistory();
 
         //Отправка уведомления о бронировании админу
         sendMessageToAdmin(profileData);
@@ -25,11 +25,9 @@ public class BookAskUserNumber extends AbstractBooking implements Booking {
 
     }
 
-    private String getReplyMessage(){
-
-        return "Столик № "+ profileData.getTableNum() + " " + profileData.getBookingTime() +
-                " забронирован на имя " + profileData.getName() +
-                "\n" + "Телефон для связи: " + profileData.getPhoneNumber() +
-                "\n Заяка отправлена на рассмотрение. Ждите ответа от администратора";
+    @Override
+    protected void saveBookingHistory() {
+        tableBookingHistoryCache.saveWithoutBookingTables(profileData, 150);
     }
+
 }

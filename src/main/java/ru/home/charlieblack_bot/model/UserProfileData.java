@@ -48,11 +48,11 @@ public class UserProfileData implements Serializable {
     public String toString() {
         return "Информация о вас:\n" +
                 "\n" +
-                "Ваше имя - " + name + "\n" +
-                "Тел. номер - " + phoneNumber + "\n" +
-                "Число человек - " + personCount + "\n" +
-                "Номер столика - " + tableNum + "\n" +
-                "Время бронирования - " + bookingTime;
+                "Ваше имя - " + getField(name) + "\n" +
+                "Тел. номер - " + getField(phoneNumber) + "\n" +
+                "Число человек - " + getField(personCount) + "\n" +
+                "Номер столика - " + getField(tableNum) + "\n" +
+                "Время бронирования - " + getField(bookingTime);
     }
 
     public static long getUserIdFromUpdate(Update update){
@@ -75,6 +75,8 @@ public class UserProfileData implements Serializable {
             } else if (inputMsg.contains("table_num")) {
                 this.setTableNum(Integer.parseInt(inputMsg.split("[=&]")[1]));
                 this.setPersonCount(inputMsg.split("[=&]")[3]);
+            } else if (inputMsg.contains("person_count=")){
+                this.setPersonCount(inputMsg.split("=")[1]);
             } else if (botStateEnum.equals(BotStateEnum.BOOKING_ASK_NAME) ||
                             botStateEnum.equals(BotStateEnum.CHANGE_USER_NAME) &&
                             inputMsg.matches("[а-яёА-ЯЁ]+")) {
@@ -86,5 +88,21 @@ public class UserProfileData implements Serializable {
             }
         }
 
+    }
+
+    private String getField(String field){
+        return (field != null ? field : "неизвестно");
+    }
+
+    private String getField(int field){
+        return (field != 0 ? String.valueOf(field) : "неизвестно");
+    }
+
+    public boolean hasName(){
+        return this.getName() != null;
+    }
+
+    public boolean hasPhoneNumber(){
+        return this.getPhoneNumber() != null;
     }
 }

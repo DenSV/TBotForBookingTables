@@ -53,8 +53,17 @@ public class TableBookingHistory implements Serializable, Comparable<TableBookin
 
     @Override
     public String toString() {
-        String personName = personalData.split(" ")[0];
-        String personPhone = personalData.split(" ")[1];
+
+        String[] personalDataArray = personalData.split(" ");
+
+        String personName, personPhone;
+        if (personalDataArray.length > 2){
+            personName = personalDataArray[0] + " " + personalDataArray[1];
+            personPhone = personalDataArray[2];
+        } else {
+            personName = personalDataArray[0];
+            personPhone = personalDataArray[1];
+        }
 
         return "Стол №" + tableInfo.getTableNumber() +
                 " забронирован к " + bookingTime +
@@ -62,6 +71,7 @@ public class TableBookingHistory implements Serializable, Comparable<TableBookin
                 " чел. Имя - " + personName +
                 ", тел. номер: " + personPhone;
 
+        //Стол <№ стола> забронирован к <время> на <кол-во человек>. Имя <Имя пользователя> тел. номер: <тел. номер юзера>
     }
 
     @Override

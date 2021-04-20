@@ -15,8 +15,10 @@ public class ChangeUserNumber extends AbstractBooking implements Booking {
 
     @Override
     public SendMessage getResponse() {
-        userDataCache.setUsersCurrentBotState(userId, currentBotStateEnum.getMainBotState());
-        userDataCache.saveUserProfileData(userId, profileData);
+
+        setMainBotState();
+        saveUserData();
+
         return messagesService.getReplyMessage(userId, profileData.toString())
                 .setReplyMarkup(getReplyKeyBoardChangeUserInfo());
     }

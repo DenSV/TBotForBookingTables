@@ -4,19 +4,19 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import ru.home.charlieblack_bot.botstate.BotStateEnum;
-import ru.home.charlieblack_bot.botstate.handlers.Booking;
 import ru.home.charlieblack_bot.botstate.handlers.AbstractBooking;
+import ru.home.charlieblack_bot.botstate.handlers.Booking;
+import ru.home.charlieblack_bot.keyboardbuilders.InlineButtons;
+import ru.home.charlieblack_bot.keyboardbuilders.InlineButtonsBuilder;
+import ru.home.charlieblack_bot.keyboardbuilders.KeyboardButtonsBuilder;
 import ru.home.charlieblack_bot.model.TableBookingHistory;
 import ru.home.charlieblack_bot.model.UserProfileData;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static ru.home.charlieblack_bot.botstate.handlers.BookingCore.sendMessage;
+import static ru.home.charlieblack_bot.botstate.handlers.BookingCore.editMessage;
 
 public class AdminGetBookHistory extends AbstractBooking implements Booking {
 
@@ -29,10 +29,11 @@ public class AdminGetBookHistory extends AbstractBooking implements Booking {
     public SendMessage getResponse() {
 
         if (inputMsg.equals("Показать историю бронирования")){
-            userDataCache.setUsersCurrentBotState(userId, BotStateEnum.ADMIN_START);
-            return messagesService.getReplyMessage(userId, getBookingHistory());
+            setAnotherBotState(BotStateEnum.ADMIN_START);
+
+            return editMessage(update, getBookingHistory(), getInlineKeyboard());
         } else if(inputMsg.equals("Администраторы")) {
-            userDataCache.setUsersCurrentBotState(userId, BotStateEnum.ADMIN_CHANGE_LIST);
+            setAnotherBotState(BotStateEnum.ADMIN_CHANGE_LIST);
 
             return getAdminList();
         }
@@ -42,7 +43,7 @@ public class AdminGetBookHistory extends AbstractBooking implements Booking {
 
     private String getBookingHistory(){
         final String[] result = {""};
-
+        
         List<TableBookingHistory> tableBookingHistoryList = tableBookingHistoryCache.getAllApprovedBookingHistory();
 
         if (tableBookingHistoryList.isEmpty()){
@@ -50,7 +51,7 @@ public class AdminGetBookHistory extends AbstractBooking implements Booking {
         }
 
         tableBookingHistoryList.forEach(tableBookingHistory ->
-                result[0] = result[0] + tableBookingHistory + "\n");
+                result[0] = result[0] + tableBookingHistory + "\n--------------------------------------\n");
 
         return result[0];
     }
@@ -60,70 +61,56 @@ public class AdminGetBookHistory extends AbstractBooking implements Booking {
 
         if(result.size() > 0){
             //вывести сообщениями список админов (сообщение + inline-кнопка)
-            sendListOfMessages(result);
-            return null;
+            return getListOfAdminsInline(result);
 
         } else {
-            return messagesService.getReplyMessage(userId, "Список администраторов пуст").setReplyMarkup(getReplyKeyBoard());
+            return messagesService.getReplyMessage(userId, "Список администраторов пуст")
+                    .setReplyMarkup(getReplyKeyBoard());
         }
 
     }
 
     private ReplyKeyboardMarkup getReplyKeyBoard() {
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        replyKeyboardMarkup.setOneTimeKeyboard(true);
-        replyKeyboardMarkup.setResizeKeyboard(true);
-        replyKeyboardMarkup.setSelective(true);
+        List<String> buttons = new ArrayList<>();
+        buttons.add("Добавить администратора");
+        buttons.add("Вернуться на главную");
 
-        List<KeyboardRow> keyboardRows = new ArrayList<>();
-        KeyboardRow keyboardRow1 = new KeyboardRow();
-        keyboardRow1.add(new KeyboardButton("Добавить администратора"));
-        KeyboardRow keyboardRow2 = new KeyboardRow();
-        keyboardRow2.add(new KeyboardButton("Вернуться на главную"));
-        keyboardRows.add(keyboardRow1);
-        keyboardRows.add(keyboardRow2);
-
-        return replyKeyboardMarkup.setKeyboard(keyboardRows);
+        return new KeyboardButtonsBuilder()
+                .setOneTimeKeyBoard(true)
+                .getButtons(buttons);
 
     }
 
-    private void sendListOfMessages(List<UserProfileData> adminList) {
+    public InlineKeyboardMarkup getInlineKeyboard(){
+        List<InlineButtons> buttons = new ArrayList<>();
+        buttons.add(new InlineButtons("Назад", "Администрирование"));
+        return new InlineButtonsBuilder().getButtons(buttons);
+    }
 
-        //Отправка сообщения-заголовка
-        SendMessage sendMessageHeader = new SendMessage()
-                .setChatId(userId)
-                .setText("Список администраторов")
-                .setReplyMarkup(getReplyKeyBoard());
-        sendMessage(sendMessageHeader);
+    private SendMessage getListOfAdminsInline(List<UserProfileData> adminList){
+        final String[] result = {"Администраторы:\n"};
+        final int[] index = {0};
 
-        //Отправка списка админов
+        List<InlineButtons> buttons = new ArrayList<>();
 
-            adminList.forEach(profileData -> {
 
-                InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        adminList.forEach(admin -> {
+            index[0]++;
 
-                List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+            String you = (userId == admin.getChatId()? "(Вы)": "");
+            buttons.add(new InlineButtons("Удалить администратора " + admin.getName() + you,
+                    "delete_" + admin.getChatId()));
+            result[0] = result[0] + index[0] + ". " + admin.getName() + "\n";
 
-                List<InlineKeyboardButton> inButton = new ArrayList<>();
+        });
 
-                inButton.add(new InlineKeyboardButton()
-                            .setText("Удалить из списка")
-                            .setCallbackData("delete_" + profileData.getChatId()));
+        buttons.add(new InlineButtons("Добавить администратора"));
+        buttons.add(new InlineButtons("Назад", "Администрирование"));
 
-                rowList.add(inButton);
-                inlineKeyboardMarkup.setKeyboard(rowList);
-
-                String you = "";
-                if (userId == profileData.getChatId()) you = "(Вы)";
-
-                SendMessage sendMessage = new SendMessage()
-                        .setChatId(userId)
-                        .setText(profileData.getName() + you + "\n" + profileData.getPhoneNumber())
-                        .setReplyMarkup(inlineKeyboardMarkup);
-                sendMessage(sendMessage);
-            });
+        return editMessage(update, result[0], new InlineButtonsBuilder().getButtons(buttons));
 
     }
+
 
 
 

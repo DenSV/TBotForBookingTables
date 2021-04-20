@@ -57,4 +57,7 @@ public class CharlieBlackTelegramBot extends TelegramWebhookBot {
         this.botToken = botToken;
     }
 
+    public static CharlieBlackTelegramBot getBeanFromContext(){
+        return AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
+    }
 }

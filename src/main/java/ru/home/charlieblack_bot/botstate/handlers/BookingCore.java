@@ -16,34 +16,33 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.home.charlieblack_bot.AppContProvider;
 import ru.home.charlieblack_bot.CharlieBlackTelegramBot;
-import ru.home.charlieblack_bot.ScheduledTasks;
 import ru.home.charlieblack_bot.cache.TableBookingHistoryCache;
 import ru.home.charlieblack_bot.cache.TableInfoCache;
 import ru.home.charlieblack_bot.cache.UserDataCache;
+import ru.home.charlieblack_bot.keyboardbuilders.InlineButtons;
+import ru.home.charlieblack_bot.keyboardbuilders.InlineButtonsBuilder;
+import ru.home.charlieblack_bot.keyboardbuilders.InlineKeyboardRow;
+import ru.home.charlieblack_bot.keyboardbuilders.KeyboardButtonsBuilder;
 import ru.home.charlieblack_bot.model.TableBookingHistory;
 import ru.home.charlieblack_bot.model.TableInfo;
 import ru.home.charlieblack_bot.model.UserProfileData;
+import ru.home.charlieblack_bot.service.TableBookingHistoryService;
 import ru.home.charlieblack_bot.service.TableInfoService;
 
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 
 public class BookingCore {
+
 
     public static List<TableInfo> getFreeTables(String bookingTime) {
 
         //объявление необходимых сервисов;
         TableInfoService tableInfoService = AppContProvider.getApplicationContext().getBean(TableInfoService.class);
-
-        //TableBookingHistoryService tableBookingHistoryService = ApplicationContextProvider.getApplicationContext().getBean(TableBookingHistoryService.class);
 
         //список свободных столов из БД
         List<TableInfo> freeTableList = new ArrayList<>(tableInfoService.getAllFreeTablesOnCurrentTime(bookingTime, false));
@@ -51,6 +50,36 @@ public class BookingCore {
         Collections.sort(freeTableList);
 
         return freeTableList;
+
+    }
+
+    public static boolean isTableBooked(int tableNum, String booking_time){
+
+        TableBookingHistoryService tableBookingHistoryService = AppContProvider.getApplicationContext().getBean(TableBookingHistoryService.class);
+
+        List<TableBookingHistory> tableBookingHistories = tableBookingHistoryService.getTablesByNum(tableNum);
+
+        if(tableBookingHistories.size() == 0){
+            return false;
+        } else {
+
+            for (TableBookingHistory tableBookingHistory : tableBookingHistories) {
+
+                //нижний предел
+                LocalTime bookedTime = LocalTime.parse(tableBookingHistory.getBookingTime());
+
+                LocalTime bookingTime = LocalTime.parse(booking_time);
+
+                LocalTime leftTime = bookedTime.minusMinutes(tableBookingHistory.getDuration());
+                LocalTime rightTime = bookedTime.plusMinutes(tableBookingHistory.getDuration());
+
+
+                return bookingTime.isAfter(leftTime) && bookingTime.isBefore(rightTime);
+
+            }
+        }
+
+        return false;
 
     }
 
@@ -69,6 +98,7 @@ public class BookingCore {
 
     }
 
+
     /*
         KEYBOARD'S BUTTONS
     */
@@ -76,37 +106,22 @@ public class BookingCore {
 
     public static ReplyKeyboardMarkup getReplyKeyBoardBackToStartPage(){
 
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        replyKeyboardMarkup.setSelective(true);
-        replyKeyboardMarkup.setResizeKeyboard(true);
-        replyKeyboardMarkup.setOneTimeKeyboard(false);
+        return new KeyboardButtonsBuilder()
+                .getButtons("Вернуться на главную");
 
-        List<KeyboardRow> keyboard = new ArrayList<>();
-        KeyboardRow row1 = new KeyboardRow();
-        row1.add(new KeyboardButton("Вернуться на главную"));
-        keyboard.add(row1);
-        replyKeyboardMarkup.setKeyboard(keyboard);
+    }
 
-        return replyKeyboardMarkup;
+    public static InlineKeyboardMarkup getInlineKeyBoardBackToStartPage(){
+        return new InlineButtonsBuilder().getButtons("Вернуться на главную");
     }
 
     public static ReplyKeyboardMarkup getReplyKeyboardContact(){
 
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        replyKeyboardMarkup.setSelective(true);
-        replyKeyboardMarkup.setResizeKeyboard(true);
-        replyKeyboardMarkup.setOneTimeKeyboard(true);
+        return new KeyboardButtonsBuilder()
+                .setOneTimeKeyBoard(true)
+                .getButtons("Отправить свой контакт ☎",
+                        "Вернуться на главную");
 
-        List<KeyboardRow> keyboard = new ArrayList<>();
-        KeyboardRow row1 = new KeyboardRow();
-        row1.add(new KeyboardButton("Отправить свой контакт ☎").setRequestContact(true));
-        keyboard.add(row1);
-        KeyboardRow row2 = new KeyboardRow();
-        row2.add(new KeyboardButton("Вернуться на главную"));
-        keyboard.add(row2);
-        replyKeyboardMarkup.setKeyboard(keyboard);
-
-        return replyKeyboardMarkup;
     }
 
     public static InlineKeyboardMarkup getAdressInlineButton(){
@@ -119,8 +134,12 @@ public class BookingCore {
         List<InlineKeyboardButton> keyboardButtonsRow1 = new ArrayList<>();
         keyboardButtonsRow1.add(adressButton);
 
+        List<InlineKeyboardButton> keyboardButtonsRow2 = new ArrayList<>();
+        keyboardButtonsRow2.add(new InlineButtons("Вернуться на главную").getInlineKeyboardButton());
+
         List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
         rowList.add(keyboardButtonsRow1);
+        rowList.add(keyboardButtonsRow2);
 
         inlineKeyboardMarkup.setKeyboard(rowList);
 
@@ -128,26 +147,12 @@ public class BookingCore {
     }
 
     public static ReplyKeyboardMarkup getReplyKeyBoardChangeUserInfo(){
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        replyKeyboardMarkup.setSelective(true);
-        replyKeyboardMarkup.setResizeKeyboard(true);
-        replyKeyboardMarkup.setOneTimeKeyboard(false);
 
-        List<KeyboardRow> keyboard = new ArrayList<>();
-        KeyboardRow row1 = new KeyboardRow();
-        KeyboardRow row2 = new KeyboardRow();
-        KeyboardRow row3 = new KeyboardRow();
+        return new KeyboardButtonsBuilder().getButtons(
+                "Изменить имя",
+                "Изменить номер",
+                "Вернуться на главную");
 
-        row1.add(new KeyboardButton("Изменить имя"));
-        row2.add(new KeyboardButton("Изменить номер"));
-        row3.add(new KeyboardButton("Вернуться на главную"));
-        keyboard.add(row1);
-        keyboard.add(row2);
-        keyboard.add(row3);
-
-        replyKeyboardMarkup.setKeyboard(keyboard);
-
-        return replyKeyboardMarkup;
     }
 
     public static InlineKeyboardMarkup getInlineKeyBoardTimeButtons(){
@@ -173,65 +178,89 @@ public class BookingCore {
 
         }
 
+        List<InlineKeyboardButton> inlineKeyboardButtonsBackToStart = new ArrayList<>();
+        inlineKeyboardButtonsBackToStart.add(new InlineKeyboardButton()
+                .setText("Вернуться на главную")
+                .setCallbackData("Вернуться на главную"));
+
+        rowList.add(inlineKeyboardButtonsBackToStart);
+
         inlineKeyboardMarkup.setKeyboard(rowList);
 
         return inlineKeyboardMarkup;
 
     }
 
-    public static InlineKeyboardMarkup getInlineMessageButtons(List<TableInfo> freeTables) {
+    public static InlineKeyboardMarkup getInlineMessageButtons(List<TableInfo> freeTables){
+        Set<String> uniqueCapacity = new LinkedHashSet<>();
 
-        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        List<InlineKeyboardRow> inlineRowList = new ArrayList<>();
 
-        List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+        freeTables.forEach(tableInfo -> {
+            String capacity = tableInfo.getCapacity();
 
-        for (TableInfo tableInfo: freeTables) {
-            List<InlineKeyboardButton> keyboardButtons = new ArrayList<>();
+            if(!uniqueCapacity.contains(capacity)) {
+                inlineRowList.add(new InlineKeyboardRow(
+                        new InlineButtons(capacity + " чел.",
+                                "person_count=" + capacity)));
+            }
 
-            String tableNum = String.valueOf(tableInfo.getTableNumber());
+            uniqueCapacity.add(capacity);
 
-            keyboardButtons.add(new InlineKeyboardButton()
-                    .setText("Стол №" + tableNum + " (" + tableInfo.getCapacity() + " чел.)")
-                    .setCallbackData("table_num=" + tableNum + "&" + "person_count=" + tableInfo.getCapacity()));
+        });
 
-            rowList.add(keyboardButtons);
-        }
+        inlineRowList.sort(Comparator.comparing(o -> o.getRow().get(0).getText()));
 
-        inlineKeyboardMarkup.setKeyboard(rowList);
+        inlineRowList.add(new InlineKeyboardRow(new InlineButtons("Вернуться на главную")));
+        return new InlineButtonsBuilder().getButtonsWithRows(inlineRowList);
 
-        return inlineKeyboardMarkup;
+
     }
 
-    private static ReplyKeyboard getInlineKeyBoardApproveBooking(long userId) {
-        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+    public static InlineKeyboardMarkup getInlineKeyBoardPersonCount(){
 
-        List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+        List<InlineKeyboardRow> inlineRowList = new ArrayList<>();
+        inlineRowList.add(new InlineKeyboardRow(new InlineButtons("1-3", "person_count-3")));
+        inlineRowList.add(new InlineKeyboardRow(new InlineButtons("4-6", "person_count-6")));
+        inlineRowList.add(new InlineKeyboardRow(new InlineButtons("7-9", "person_count-9")));
+        inlineRowList.add(new InlineKeyboardRow(new InlineButtons("больше 9", "person_count-10")));
 
-        List<InlineKeyboardButton> inlineKeyboardButtonRow = new ArrayList<>();
+        return new InlineButtonsBuilder().getButtonsWithRows(inlineRowList);
 
-        inlineKeyboardButtonRow.add(new InlineKeyboardButton().setText("Подтвердить").setCallbackData("booking_request_approve=" + userId));
-        inlineKeyboardButtonRow.add(new InlineKeyboardButton().setText("Отменить").setCallbackData("booking_request_decline=" + userId));
+    }
 
-        rowList.add(inlineKeyboardButtonRow);
-        inlineKeyboardMarkup.setKeyboard(rowList);
-        return inlineKeyboardMarkup;
+    private static ReplyKeyboard getInlineKeyBoardApproveBooking(UserProfileData profileData) {
+
+        long userId = profileData.getChatId();
+        String capacity = profileData.getPersonCount();
+        String bookingTime = profileData.getBookingTime();
+        List<TableInfo> freeTables = getFreeTables(bookingTime);
+        List<InlineButtons> buttons = new ArrayList<>();
+
+
+
+        freeTables.stream()
+                .filter(tableInfo -> tableInfo.getCapacity().equals(capacity))
+                .forEach(tableInfo -> {
+                    buttons.add(new InlineButtons("Стол № " + tableInfo.getTableNumber(),
+                            "booking_request_approve=" + userId +
+                                    "&table_num=" + tableInfo.getTableNumber() +
+                                    "&capacity=" + capacity));
+                });
+
+        buttons.add(new InlineButtons("Отменить", "booking_request_decline=" + userId));
+
+        return new InlineButtonsBuilder().getButtons(buttons);
 
     }
 
     public static InlineKeyboardMarkup getInlinekeyboardForBookingContinue() {
-        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
 
-        List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+        List<InlineButtons> buttons = new ArrayList<>();
+        buttons.add(new InlineButtons("Подтвердить", "booking_continue_true"));
+        buttons.add(new InlineButtons("Отменить", "booking_continue_false"));
 
-        List<InlineKeyboardButton> inlineKeyboardButtonRow = new ArrayList<>();
-
-        inlineKeyboardButtonRow.add(new InlineKeyboardButton().setText("Продлить").setCallbackData("booking_continue_true"));
-        inlineKeyboardButtonRow.add(new InlineKeyboardButton().setText("Отменить").setCallbackData("booking_continue_false"));
-
-        rowList.add(inlineKeyboardButtonRow);
-        inlineKeyboardMarkup.setKeyboard(rowList);
-        return inlineKeyboardMarkup;
-
+        return new InlineButtonsBuilder().getButtons(buttons);
     }
 
     /*
@@ -239,6 +268,8 @@ public class BookingCore {
      */
 
     public static void sendMessageToAdmin(UserProfileData profileData){
+
+        //Метод должен получить список свободных столов и выбрать те, которые отобраны по количеству человек
 
         UserDataCache userDataCache = AppContProvider.getApplicationContext().getBean(UserDataCache.class);
 
@@ -250,12 +281,13 @@ public class BookingCore {
         adminList.forEach(admin -> {
             SendMessage sendMessageHeader = new SendMessage()
                     .setChatId(admin.getChatId())
-                    .setText("Стол № " + profileData.getTableNum() +
-                            " забронирован к " + profileData.getBookingTime() +
+                    .setText("Гость хочет забронировать стол к " + profileData.getBookingTime() +
+                            //"Стол № " + profileData.getTableNum() +
+                            //" забронирован к " + profileData.getBookingTime() +
                             " на " + profileData.getPersonCount() +
                             " чел. " + " Имя - " + profileData.getName() +
                             ", тел. номер: " + profileData.getPhoneNumber())
-                    .setReplyMarkup(getInlineKeyBoardApproveBooking(profileData.getChatId()));
+                    .setReplyMarkup(getInlineKeyBoardApproveBooking(profileData));
 
 
             try {
@@ -325,27 +357,38 @@ public class BookingCore {
         String inputMsg = (update.hasCallbackQuery() ? update.getCallbackQuery().getData() : "");
 
         long adminId = UserProfileData.getUserIdFromUpdate(update);
-        long userId = Long.parseLong(inputMsg.split("=")[1]);
+        long userId = Long.parseLong(inputMsg.split("[&=]+")[1]);
 
 
         TableBookingHistoryCache tableBookingHistoryCache = AppContProvider.getApplicationContext().getBean(TableBookingHistoryCache.class);
         UserDataCache userDataCache = AppContProvider.getApplicationContext().getBean(UserDataCache.class);
-        ScheduledTasks scheduledTasks = AppContProvider.getApplicationContext().getBean(ScheduledTasks.class);
+        TableInfoCache tableInfoCache = AppContProvider.getApplicationContext().getBean(TableInfoCache.class);
 
         TableBookingHistory tableBookingHistory = tableBookingHistoryCache.getTableBookingHistoryByUserId(userId);
 
         if(inputMsg.contains("booking_request_approve")){
-            tableBookingHistory.setBookingStatus("approved");
+
+            UserProfileData userProfileData = userDataCache.getUserProfileData(userId);
+
+            int tableNum = Integer.parseInt(inputMsg.split("[&=]+")[3]);
+
+            userProfileData.setTableNum(tableNum);
+
+            userDataCache.saveUserProfileData(userId, userProfileData);
+
+            TableInfo tableInfo = tableInfoCache.getTableInfoByTableNumAndBookingTime(tableNum, userDataCache.getUserProfileData(userId).getBookingTime());
+
+            tableBookingHistory.setTableInfo(tableInfo);
+            tableBookingHistory.setTableNumId(tableInfo.getId());
+
             tableBookingHistoryCache.saveTableBookingHistory(userId, tableBookingHistory);
-            scheduledTasks.addUserForNotification(userId, userDataCache.getUserProfileData(userId).getBookingTime());
             SendMessage sendMessage = new SendMessage().setChatId(userId).setText("Ваша бронь подтверждена. Ждем вас");
 
             //Если админ подтвердил бронь, то происходит удаление сообщений у других администраторов
             List<String> messageForAdmins = tableBookingHistoryCache.getMessagesForAdmins(userId);
             messageForAdmins.forEach(str -> {
-                BookingCore.deleteMessage( new DeleteMessage()
-                        .setChatId(str.split("_")[0])
-                        .setMessageId(Integer.parseInt(str.split("_")[1])));
+
+                deleteMessage(str);
 
                 sendMessage(new SendMessage()
                         .setChatId(str.split("_")[0])
@@ -361,19 +404,17 @@ public class BookingCore {
             return new SendMessage(adminId, "Бронь подтверждена");
 
         } else if(inputMsg.contains("booking_request_decline")){
-            tableBookingHistoryCache.deleteByBookingTimeAndUserId(userDataCache.getUserProfileData(userId), 150);
+            tableBookingHistoryCache.deleteByBookingTimeAndUserIdWithoutBooking(userDataCache.getUserProfileData(userId));
 
             SendMessage sendMessage = new SendMessage().setChatId(userId).setText("Ваша бронь отменена");
 
             List<String> messageForAdmins = tableBookingHistoryCache.getMessagesForAdmins(userId);
             messageForAdmins.forEach(str -> {
-                BookingCore.deleteMessage( new DeleteMessage()
-                        .setChatId(str.split("_")[0])
-                        .setMessageId(Integer.parseInt(str.split("_")[1])));
+                deleteMessage(str);
 
                 sendMessage(new SendMessage()
                         .setChatId(str.split("_")[0])
-                        .setText("Бронь на стол №" + tableBookingHistory.getTableInfo().getTableNumber() +
+                        .setText("Бронь отменена " + //"Бронь на стол №" + tableBookingHistory.getTableInfo().getTableNumber() +
                                 " к " + tableBookingHistory.getBookingTime() + " отменил администратор " +
                                 userDataCache.getUserProfileData(userId).getName()));
             });
@@ -388,6 +429,27 @@ public class BookingCore {
         return null;
     }
 
+
+    public static void notifyForAdminsAboutBookingFromPhoneCall(long userId, String message){
+
+        TableBookingHistoryCache tableBookingHistoryCache = AppContProvider.getApplicationContext().getBean(TableBookingHistoryCache.class);
+        UserDataCache userDataCache = AppContProvider.getApplicationContext().getBean(UserDataCache.class);
+
+        String messageForOtherAdmins = message.replace("забронирован", "забронировал администратор " +
+                userDataCache.getUserProfileData(userId).getName() );
+
+
+        tableBookingHistoryCache.getMessagesForAdmins(userId).forEach(str -> {
+
+            sendMessage(new SendMessage()
+                    .setChatId(str.split("_")[0])
+                    .setText(messageForOtherAdmins));
+
+        });
+
+    }
+
+
     public static void sendMessage(SendMessage sendMessage){
         CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
 
@@ -400,6 +462,35 @@ public class BookingCore {
         }
     }
 
+    public static void sendMessage(Update update, String text, ReplyKeyboard replyKeyboard){
+        CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
+
+        try {
+            telegramBot.execute(new SendMessage()
+                    .setChatId(UserProfileData.getUserIdFromUpdate(update))
+                    .setText(text)
+                    .setReplyMarkup(replyKeyboard));
+
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void sendMessage(Update update, String text){
+
+        try {
+            CharlieBlackTelegramBot.getBeanFromContext().execute(
+                    new SendMessage()
+                    .setChatId(UserProfileData.getUserIdFromUpdate(update))
+                    .setText(text));
+
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
     public static void editMessage(EditMessageText editMessageText){
         CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
 
@@ -410,12 +501,12 @@ public class BookingCore {
         }
     }
 
-    public static SendMessage editMessage(long userId, Update update, String text){
+    public static SendMessage editMessage(Update update, String text){
         CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
 
         try {
             telegramBot.execute(new EditMessageText()
-                    .setChatId(userId)
+                    .setChatId(update.getCallbackQuery().getMessage().getChatId())
                     .setMessageId(update.getCallbackQuery().getMessage().getMessageId())
                     .setText(text));
 
@@ -426,15 +517,16 @@ public class BookingCore {
         return null;
     }
 
-    public static SendMessage editMessage(long userId, Update update, String text, InlineKeyboardMarkup inlineKeyboardMarkup){
+    public static SendMessage editMessage(Update update, String text, InlineKeyboardMarkup inlineKeyboardMarkup){
         CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
 
         try {
             telegramBot.execute(new EditMessageText()
-                    .setChatId(userId)
+                    .setChatId(update.getCallbackQuery().getMessage().getChatId())
                     .setMessageId(update.getCallbackQuery().getMessage().getMessageId())
                     .setText(text)
-                    .setReplyMarkup(inlineKeyboardMarkup));
+                    .setReplyMarkup(inlineKeyboardMarkup)
+                    .setParseMode("Markdown"));
 
         } catch (TelegramApiException e) {
             e.printStackTrace();
@@ -443,15 +535,16 @@ public class BookingCore {
         return null;
     }
 
-    public static void deleteMessage(DeleteMessage deleteMessage){
+    public static void deleteMessage(String adminId){
         CharlieBlackTelegramBot telegramBot = AppContProvider.getApplicationContext().getBean(CharlieBlackTelegramBot.class);
 
         try {
-            telegramBot.execute(deleteMessage);
+            telegramBot.execute(new DeleteMessage()
+                    .setChatId(adminId.split("_")[0])
+                    .setMessageId(Integer.parseInt(adminId.split("_")[1])));
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
-
     }
 
     public static String getTableCapacity(int tableNum){
